@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Colores personalizados para la app de manicuría
+				nail: {
+					'light-pink': '#FFB6C1',
+					'pink': '#FF69B4',
+					'dark-pink': '#DB7093',
+					'white': '#FFFFFF',
+					'gray': '#F8F9FA'
 				}
 			},
 			borderRadius: {
