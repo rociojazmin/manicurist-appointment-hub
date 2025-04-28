@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +21,7 @@ type Appointment = {
   date: Date;
   time: string;
   notes?: string;
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "cancelled" | "completed";
 };
 
 // Datos simulados de citas
@@ -146,6 +145,7 @@ const AppointmentsPage = () => {
       case "confirmed": return "bg-green-100 text-green-800";
       case "pending": return "bg-amber-100 text-amber-800";
       case "cancelled": return "bg-red-100 text-red-800";
+      case "completed": return "bg-blue-100 text-blue-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -155,6 +155,7 @@ const AppointmentsPage = () => {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";
       case "cancelled": return "Cancelado";
+      case "completed": return "Completado";
       default: return status;
     }
   };
