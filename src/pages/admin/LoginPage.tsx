@@ -1,130 +1,89 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { useState } from 'react';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-const LoginPage = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+export default function LoginPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const { login, register } = useAuthContext();
 
-  // Si ya está autenticado, redirigir al dashboard
-  if (isAuthenticated) {
-    navigate("/admin");
-    return null;
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Por favor, ingresa email y contraseña",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
+    if (isLogin) {
       await login(email, password);
-      toast({
-        title: "¡Bienvenida!",
-        description: "Has iniciado sesión correctamente",
-      });
-      navigate("/admin");
-    } catch (error) {
-      toast({
-        title: "Error de inicio de sesión",
-        description: "Credenciales incorrectas. Intenta nuevamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      await register(email, password, name);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-secondary bg-opacity-30 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Panel de Administración</h1>
-          <p className="text-muted-foreground mt-2">
-            Inicia sesión para gestionar tus servicios y turnos
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            {isLogin ? 'Iniciar sesión' : 'Registrarse'}
+          </h2>
         </div>
-        
-        <div className="bg-white rounded-xl shadow-md p-8">
-          <form onSubmit={handleLogin}>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            {!isLogin && (
+              <div className="mb-4">
+                <Label htmlFor="name">Nombre</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ingresa tu email"
+                  id="name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Ingresa tu contraseña"
-                />
-              </div>
+            )}
+            <div className="mb-4">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
-            
-            <Button
-              type="submit"
-              className="w-full mt-6"
-              disabled={isLoading}
-            >
-              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
-            </Button>
-          </form>
-          
-          <div className="mt-6 pt-4 border-t text-center">
-            <p className="text-sm text-muted-foreground">
-              ¿No tienes una cuenta? Contacta al administrador del sistema.
-            </p>
+            <div className="mb-4">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
-        
-        <div className="mt-6 text-center">
+
+          <div>
+            <Button type="submit" className="w-full">
+              {isLogin ? 'Iniciar sesión' : 'Registrarse'}
+            </Button>
+          </div>
+        </form>
+
+        <div className="text-center">
           <Button
             variant="link"
-            onClick={() => navigate("/")}
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-sm"
           >
-            Volver al sitio principal
+            {isLogin
+              ? '¿No tienes una cuenta? Regístrate'
+              : '¿Ya tienes una cuenta? Inicia sesión'}
           </Button>
-        </div>
-        
-        {/* Credenciales demo */}
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <p className="text-sm text-center font-medium mb-2">Credenciales de demostración:</p>
-          <p className="text-sm text-center text-muted-foreground">
-            Email: admin@nailsalon.com<br />
-            Contraseña: admin123
-          </p>
         </div>
       </div>
     </div>
   );
-};
-
-export default LoginPage;
+}
