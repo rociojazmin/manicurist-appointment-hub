@@ -3,14 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-
-// Define the Manicurist type 
-export type Manicurist = {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-};
+import { Manicurist } from '@/types/database';
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +18,6 @@ export function useAuth() {
         
         if (session?.user) {
           try {
-            // Usamos PostgrestFilterBuilder<any> para evitar errores de tipado
             const { data: profileData, error } = await supabase
               .from('manicurists')
               .select('*')
@@ -36,7 +28,9 @@ export function useAuth() {
               console.error('Error fetching manicurist profile:', error);
               setProfile(null);
             } else {
-              setProfile(profileData as Manicurist);
+              // Como ya hemos ajustado el tipo Manicurist para que coincida con la estructura de la base de datos,
+              // ahora podemos asignar directamente sin conversión de tipo
+              setProfile(profileData);
             }
           } catch (error) {
             console.error('Error fetching manicurist profile:', error);
@@ -53,7 +47,25 @@ export function useAuth() {
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      setIsLoading(false);
+      
+      if (session?.user) {
+        // Fetch user profile on initial load
+        supabase
+          .from('manicurists')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching initial profile:', error);
+            } else {
+              setProfile(data);
+            }
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -75,7 +87,7 @@ export function useAuth() {
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -84,7 +96,29 @@ export function useAuth() {
           }
         }
       });
-      if (error) throw error;
+      
+      if (signUpError) throw signUpError;
+      
+      // Después de registrarse con éxito, crear perfil en la tabla manicurists
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('manicurists')
+          .insert({
+            id: data.user.id,
+            name: name,
+            phone: null,
+          });
+          
+        if (profileError) {
+          console.error("Error creating manicurist profile:", profileError);
+          toast({
+            title: "Error al crear perfil",
+            description: "Se creó la cuenta pero hubo un problema al crear el perfil",
+            variant: "destructive"
+          });
+        }
+      }
+      
       toast({
         title: "Registro exitoso",
         description: "Por favor verifica tu email para confirmar tu cuenta."

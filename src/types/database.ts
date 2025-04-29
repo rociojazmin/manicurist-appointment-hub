@@ -1,4 +1,3 @@
-
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface Manicurist {
@@ -7,7 +6,7 @@ export interface Manicurist {
   phone: string | null;
   created_at: string;
   updated_at: string;
-  email?: string; // Hacer email opcional
+  email?: string; // Ahora email es opcional
 }
 
 export interface Service {
