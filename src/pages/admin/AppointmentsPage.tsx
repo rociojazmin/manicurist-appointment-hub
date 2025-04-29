@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,112 +12,139 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
-
-// Tipo para una cita
-type Appointment = {
-  id: string;
-  clientName: string;
-  phone: string;
-  service: string;
-  date: Date;
-  time: string;
-  notes?: string;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
-};
-
-// Datos simulados de citas
-const MOCK_APPOINTMENTS: Appointment[] = [
-  {
-    id: "1",
-    clientName: "María García",
-    phone: "1234567890",
-    service: "Semipermanente",
-    date: new Date(2025, 3, 28), // Hoy
-    time: "10:00",
-    status: "confirmed"
-  },
-  {
-    id: "2",
-    clientName: "Laura Pérez",
-    phone: "2345678901",
-    service: "Kapping",
-    date: new Date(2025, 3, 28), // Hoy
-    time: "14:30",
-    notes: "Primera vez",
-    status: "pending"
-  },
-  {
-    id: "3",
-    clientName: "Ana Rodríguez",
-    phone: "3456789012",
-    service: "Esculpidas",
-    date: addDays(new Date(), 1), // Mañana
-    time: "11:00",
-    status: "confirmed"
-  },
-  {
-    id: "4",
-    clientName: "Gabriela López",
-    phone: "4567890123",
-    service: "Manicuría Tradicional",
-    date: addDays(new Date(), 2), // Pasado mañana
-    time: "16:00",
-    status: "pending"
-  },
-  {
-    id: "5",
-    clientName: "Lucía Martínez",
-    phone: "5678901234",
-    service: "Pedicuría",
-    date: addDays(new Date(), 3),
-    time: "09:30",
-    status: "pending"
-  },
-  {
-    id: "6",
-    clientName: "Carla Sánchez",
-    phone: "6789012345",
-    service: "Semipermanente",
-    date: addDays(new Date(), -2), // Hace 2 días
-    time: "15:00",
-    status: "completed"
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
+import { Appointment, Service } from "@/types/database";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const AppointmentsPage = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<Record<string, Service>>({});
   const { toast } = useToast();
+  const { profile } = useAuthContext();
 
-  const todayAppointments = appointments.filter(apt => isToday(apt.date));
-  const upcomingAppointments = appointments.filter(apt => isFuture(apt.date) && !isToday(apt.date));
-  const pastAppointments = appointments.filter(apt => isPast(apt.date) && !isToday(apt.date));
+  // Cargar citas desde la base de datos
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      if (!profile) return;
+
+      setLoading(true);
+      try {
+        // Cargar todas las citas para este manicurista
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('manicurist_id', profile.id)
+          .order('appointment_date', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching appointments:', error);
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar las citas",
+            variant: "destructive"
+          });
+        } else {
+          setAppointments(data || []);
+        }
+        
+        // Cargar servicios para mostrar nombres
+        const { data: servicesData, error: servicesError } = await supabase
+          .from('services')
+          .select('*')
+          .eq('manicurist_id', profile.id);
+          
+        if (servicesError) {
+          console.error('Error fetching services:', servicesError);
+        } else {
+          const servicesMap: Record<string, Service> = {};
+          servicesData?.forEach(service => {
+            servicesMap[service.id] = service;
+          });
+          setServices(servicesMap);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (profile) {
+      fetchAppointments();
+    }
+  }, [profile, toast]);
+
+  // Filtrar citas por fecha y estado
+  const todayAppointments = appointments.filter(apt => 
+    format(new Date(apt.appointment_date), "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
+  );
+  
+  const upcomingAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return isFuture(aptDate) && !isToday(aptDate);
+  });
+  
+  const pastAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return isPast(aptDate) && !isToday(aptDate);
+  });
   
   const dateAppointments = selectedDate 
-    ? appointments.filter(apt => 
-        apt.date.getDate() === selectedDate.getDate() &&
-        apt.date.getMonth() === selectedDate.getMonth() &&
-        apt.date.getFullYear() === selectedDate.getFullYear()
-      )
+    ? appointments.filter(apt => {
+        const aptDate = new Date(apt.appointment_date);
+        return aptDate.getDate() === selectedDate.getDate() &&
+               aptDate.getMonth() === selectedDate.getMonth() &&
+               aptDate.getFullYear() === selectedDate.getFullYear();
+      })
     : [];
 
-  const handleStatus = (id: string, newStatus: Appointment["status"]) => {
-    const updatedAppointments = appointments.map(apt =>
-      apt.id === id ? { ...apt, status: newStatus } : apt
-    );
-    setAppointments(updatedAppointments);
+  const handleStatus = async (id: string, newStatus: Appointment["status"]) => {
+    if (!profile) return;
+    
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', id);
+        
+      if (error) {
+        console.error('Error updating appointment status:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar el estado de la cita",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Actualizar estado local
+      const updatedAppointments = appointments.map(apt =>
+        apt.id === id ? { ...apt, status: newStatus } : apt
+      );
+      setAppointments(updatedAppointments);
+      
+      // Si la cita seleccionada es la que se actualizó, actualizar también
+      if (selectedAppointment?.id === id) {
+        setSelectedAppointment({ ...selectedAppointment, status: newStatus });
+      }
 
-    const appointment = appointments.find(apt => apt.id === id);
-    toast({
-      title: "Estado actualizado",
-      description: `La cita de ${appointment?.clientName} ha sido ${
-        newStatus === "confirmed" ? "confirmada" : 
-        newStatus === "cancelled" ? "cancelada" : "actualizada"
-      }`
-    });
+      const appointment = appointments.find(apt => apt.id === id);
+      toast({
+        title: "Estado actualizado",
+        description: `La cita de ${appointment?.client_name} ha sido ${
+          newStatus === "confirmed" ? "confirmada" : 
+          newStatus === "cancelled" ? "cancelada" : 
+          newStatus === "completed" ? "completada" : "actualizada"
+        }`
+      });
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
   const handleOpenDetails = (appointment: Appointment) => {
@@ -125,19 +153,43 @@ const AppointmentsPage = () => {
     setIsDetailsOpen(true);
   };
 
-  const handleUpdateNotes = () => {
+  const handleUpdateNotes = async () => {
     if (!selectedAppointment) return;
 
-    const updatedAppointments = appointments.map(apt =>
-      apt.id === selectedAppointment.id ? { ...apt, notes } : apt
-    );
-    setAppointments(updatedAppointments);
-    setIsDetailsOpen(false);
+    try {
+      // Actualizar notas en la base de datos
+      const { error } = await supabase
+        .from('appointments')
+        .update({ 
+          notes: notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedAppointment.id);
+        
+      if (error) {
+        console.error('Error updating appointment notes:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron actualizar las notas",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Actualizar estado local
+      const updatedAppointments = appointments.map(apt =>
+        apt.id === selectedAppointment.id ? { ...apt, notes } : apt
+      );
+      setAppointments(updatedAppointments);
+      setIsDetailsOpen(false);
 
-    toast({
-      title: "Notas actualizadas",
-      description: "Las notas de la cita han sido actualizadas correctamente"
-    });
+      toast({
+        title: "Notas actualizadas",
+        description: "Las notas de la cita han sido actualizadas correctamente"
+      });
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
   const getStatusColor = (status: Appointment["status"]) => {
@@ -164,10 +216,12 @@ const AppointmentsPage = () => {
     <div key={appointment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-medium">{appointment.clientName}</h3>
-          <p className="text-sm text-muted-foreground">{appointment.service}</p>
+          <h3 className="font-medium">{appointment.client_name}</h3>
           <p className="text-sm text-muted-foreground">
-            {format(appointment.date, "d MMM yyyy", { locale: es })} - {appointment.time}
+            {services[appointment.service_id || '']?.name || 'Servicio no encontrado'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(appointment.appointment_date), "d MMM yyyy", { locale: es })} - {appointment.appointment_time}
           </p>
         </div>
         <Badge className={getStatusColor(appointment.status)}>
@@ -202,9 +256,27 @@ const AppointmentsPage = () => {
             </Button>
           </>
         )}
+        {appointment.status === "confirmed" && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+            onClick={() => handleStatus(appointment.id, "completed")}
+          >
+            Completar
+          </Button>
+        )}
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -265,7 +337,7 @@ const AppointmentsPage = () => {
                 {dateAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {dateAppointments
-                      .sort((a, b) => a.time.localeCompare(b.time))
+                      .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
                       .map(renderAppointmentCard)}
                   </div>
                 ) : (
@@ -290,7 +362,7 @@ const AppointmentsPage = () => {
               {todayAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {todayAppointments
-                    .sort((a, b) => a.time.localeCompare(b.time))
+                    .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
                     .map(renderAppointmentCard)}
                 </div>
               ) : (
@@ -314,7 +386,15 @@ const AppointmentsPage = () => {
               {upcomingAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {upcomingAppointments
-                    .sort((a, b) => a.date.getTime() - b.date.getTime())
+                    .sort((a, b) => {
+                      // Ordenar por fecha primero, luego por hora
+                      const dateA = new Date(a.appointment_date);
+                      const dateB = new Date(b.appointment_date);
+                      if (dateA.getTime() !== dateB.getTime()) {
+                        return dateA.getTime() - dateB.getTime();
+                      }
+                      return a.appointment_time.localeCompare(b.appointment_time);
+                    })
                     .map(renderAppointmentCard)}
                 </div>
               ) : (
@@ -338,7 +418,15 @@ const AppointmentsPage = () => {
               {pastAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {pastAppointments
-                    .sort((a, b) => b.date.getTime() - a.date.getTime())
+                    .sort((a, b) => {
+                      // Ordenar por fecha desc, más recientes primero
+                      const dateA = new Date(a.appointment_date);
+                      const dateB = new Date(b.appointment_date);
+                      if (dateA.getTime() !== dateB.getTime()) {
+                        return dateB.getTime() - dateA.getTime();
+                      }
+                      return b.appointment_time.localeCompare(a.appointment_time);
+                    })
                     .map(renderAppointmentCard)}
                 </div>
               ) : (
@@ -364,18 +452,20 @@ const AppointmentsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Cliente</Label>
-                  <p className="font-medium">{selectedAppointment.clientName}</p>
+                  <p className="font-medium">{selectedAppointment.client_name}</p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Teléfono</Label>
-                  <p className="font-medium">{selectedAppointment.phone}</p>
+                  <p className="font-medium">{selectedAppointment.client_phone}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Servicio</Label>
-                  <p className="font-medium">{selectedAppointment.service}</p>
+                  <p className="font-medium">
+                    {services[selectedAppointment.service_id || '']?.name || 'Servicio no encontrado'}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Estado</Label>
@@ -388,11 +478,13 @@ const AppointmentsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Fecha</Label>
-                  <p className="font-medium">{format(selectedAppointment.date, "d MMMM yyyy", { locale: es })}</p>
+                  <p className="font-medium">
+                    {format(new Date(selectedAppointment.appointment_date), "d MMMM yyyy", { locale: es })}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Hora</Label>
-                  <p className="font-medium">{selectedAppointment.time}</p>
+                  <p className="font-medium">{selectedAppointment.appointment_time}</p>
                 </div>
               </div>
               

@@ -3,44 +3,9 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-// Tipos
-type Appointment = {
-  id: string;
-  clientName: string;
-  service: string;
-  date: Date;
-  time: string;
-  status: "pending" | "confirmed" | "cancelled";
-};
-
-// Datos simulados
-const TODAY_APPOINTMENTS: Appointment[] = [
-  {
-    id: "1",
-    clientName: "María García",
-    service: "Semipermanente",
-    date: new Date(),
-    time: "10:00",
-    status: "confirmed"
-  },
-  {
-    id: "2",
-    clientName: "Laura Pérez",
-    service: "Kapping",
-    date: new Date(),
-    time: "11:30",
-    status: "pending"
-  },
-  {
-    id: "3",
-    clientName: "Ana Rodríguez",
-    service: "Esculpidas",
-    date: new Date(),
-    time: "14:00",
-    status: "confirmed"
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
+import { Appointment, Service } from "@/types/database";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const DashboardPage = () => {
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
@@ -51,26 +16,109 @@ const DashboardPage = () => {
     totalCount: 0,
     todayCount: 0
   });
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<Record<string, Service>>({});
+  const { profile } = useAuthContext();
 
   useEffect(() => {
-    // Simulamos la carga de datos
-    setTimeout(() => {
-      setTodayAppointments(TODAY_APPOINTMENTS);
-      setStats({
-        pendingCount: 5,
-        confirmedCount: 12,
-        cancelledCount: 2,
-        totalCount: 19,
-        todayCount: TODAY_APPOINTMENTS.length
-      });
-    }, 500);
-  }, []);
+    const fetchData = async () => {
+      if (!profile) return;
+
+      setLoading(true);
+      try {
+        // Obtener la fecha de hoy en formato YYYY-MM-DD
+        const today = new Date();
+        const formattedDate = format(today, "yyyy-MM-dd");
+        
+        // Cargar citas de hoy
+        const { data: todayData, error: todayError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('manicurist_id', profile.id)
+          .eq('appointment_date', formattedDate)
+          .order('appointment_time', { ascending: true });
+          
+        if (todayError) {
+          console.error('Error fetching today appointments:', todayError);
+        } else {
+          setTodayAppointments(todayData || []);
+        }
+
+        // Cargar estadísticas de citas
+        // Pendientes
+        const { count: pendingCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('manicurist_id', profile.id)
+          .eq('status', 'pending');
+
+        // Confirmadas
+        const { count: confirmedCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('manicurist_id', profile.id)
+          .eq('status', 'confirmed');
+
+        // Canceladas
+        const { count: cancelledCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('manicurist_id', profile.id)
+          .eq('status', 'cancelled');
+
+        // Total (últimos 30 días)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const formattedThirtyDaysAgo = format(thirtyDaysAgo, "yyyy-MM-dd");
+        
+        const { count: totalCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('manicurist_id', profile.id)
+          .gte('appointment_date', formattedThirtyDaysAgo);
+
+        // Cargar servicios para mostrar nombres
+        const { data: servicesData, error: servicesError } = await supabase
+          .from('services')
+          .select('*')
+          .eq('manicurist_id', profile.id);
+          
+        if (servicesError) {
+          console.error('Error fetching services:', servicesError);
+        } else {
+          const servicesMap: Record<string, Service> = {};
+          servicesData?.forEach(service => {
+            servicesMap[service.id] = service;
+          });
+          setServices(servicesMap);
+        }
+        
+        // Actualizar estadísticas
+        setStats({
+          pendingCount: pendingCount || 0,
+          confirmedCount: confirmedCount || 0,
+          cancelledCount: cancelledCount || 0,
+          totalCount: totalCount || 0,
+          todayCount: todayData?.length || 0
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (profile) {
+      fetchData();
+    }
+  }, [profile]);
 
   const getStatusColor = (status: Appointment["status"]) => {
     switch (status) {
       case "confirmed": return "text-green-600 bg-green-100";
       case "pending": return "text-amber-600 bg-amber-100";
       case "cancelled": return "text-red-600 bg-red-100";
+      case "completed": return "text-blue-600 bg-blue-100";
       default: return "";
     }
   };
@@ -80,9 +128,18 @@ const DashboardPage = () => {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";
       case "cancelled": return "Cancelado";
+      case "completed": return "Completado";
       default: return "";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -216,10 +273,10 @@ const DashboardPage = () => {
                 {todayAppointments.map((appointment) => (
                   <div key={appointment.id} className="flex items-center justify-between p-4 rounded-lg border">
                     <div>
-                      <p className="font-medium">{appointment.clientName}</p>
+                      <p className="font-medium">{appointment.client_name}</p>
                       <div className="flex space-x-4 text-sm text-muted-foreground">
-                        <p>{appointment.service}</p>
-                        <p>{appointment.time}</p>
+                        <p>{services[appointment.service_id || '']?.name || 'Servicio no encontrado'}</p>
+                        <p>{appointment.appointment_time}</p>
                       </div>
                     </div>
                     <div>
