@@ -57,13 +57,6 @@ export type Database = {
             referencedRelation: "manicurists"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "appointments_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
         ]
       }
       exceptions: {
@@ -119,34 +112,37 @@ export type Database = {
       services: {
         Row: {
           created_at: string | null
+          description: string | null
           duration: number
           id: string
-          manicurist_id: string | null
+          manicurist_id: string
           name: string
           price: number
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           duration: number
           id?: string
-          manicurist_id?: string | null
+          manicurist_id: string
           name: string
           price: number
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           duration?: number
           id?: string
-          manicurist_id?: string | null
+          manicurist_id?: string
           name?: string
           price?: number
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "services_manicurist_id_fkey"
+            foreignKeyName: "fk_manicurist"
             columns: ["manicurist_id"]
             isOneToOne: false
             referencedRelation: "manicurists"
