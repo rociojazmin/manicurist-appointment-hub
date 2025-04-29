@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -98,7 +97,7 @@ const ServiceSelectionPage = () => {
                   key={service.id}
                   id={service.id}
                   name={service.name}
-                  description=""
+                  description=""  // Pass an empty string since we don't have description in our Service type
                   price={service.price}
                   duration={service.duration}
                   selected={localSelectedService === service.id}
