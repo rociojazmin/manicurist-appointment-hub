@@ -7,7 +7,7 @@ import type { Manicurist } from '@/types/database';
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Manicurist | null>(null);
   const navigate = useNavigate();
 
@@ -17,13 +17,18 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('manicurists')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          setProfile(profile);
+          try {
+            const { data: profile } = await supabase
+              .from('manicurists')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+              
+            setProfile(profile);
+          } catch (error) {
+            console.error('Error fetching manicurist profile:', error);
+            setProfile(null);
+          }
         } else {
           setProfile(null);
         }
@@ -40,7 +45,7 @@ export function useAuth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       navigate('/admin/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error al iniciar sesión",
         description: error.message,
@@ -65,7 +70,7 @@ export function useAuth() {
         title: "Registro exitoso",
         description: "Por favor verifica tu email para confirmar tu cuenta."
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error al registrarse",
         description: error.message,

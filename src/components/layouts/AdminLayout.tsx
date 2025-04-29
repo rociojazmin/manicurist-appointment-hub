@@ -1,11 +1,11 @@
 
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Calendar, Settings, User, LogOut } from "lucide-react";
 
 const AdminLayout = () => {
-  const { logout } = useAuth();
+  const { logout } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
 
