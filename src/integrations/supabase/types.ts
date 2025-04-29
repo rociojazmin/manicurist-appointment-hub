@@ -9,7 +9,183 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          client_name: string
+          client_phone: string
+          created_at: string | null
+          id: string
+          manicurist_id: string | null
+          notes: string | null
+          service_id: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          client_name: string
+          client_phone: string
+          created_at?: string | null
+          id?: string
+          manicurist_id?: string | null
+          notes?: string | null
+          service_id?: string | null
+          status: string
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          client_name?: string
+          client_phone?: string
+          created_at?: string | null
+          id?: string
+          manicurist_id?: string | null
+          notes?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_manicurist_id_fkey"
+            columns: ["manicurist_id"]
+            isOneToOne: false
+            referencedRelation: "manicurists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exceptions: {
+        Row: {
+          exception_date: string
+          id: string
+          manicurist_id: string | null
+        }
+        Insert: {
+          exception_date: string
+          id?: string
+          manicurist_id?: string | null
+        }
+        Update: {
+          exception_date?: string
+          id?: string
+          manicurist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exceptions_manicurist_id_fkey"
+            columns: ["manicurist_id"]
+            isOneToOne: false
+            referencedRelation: "manicurists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manicurists: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      services: {
+        Row: {
+          created_at: string | null
+          duration: number
+          id: string
+          manicurist_id: string | null
+          name: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration: number
+          id?: string
+          manicurist_id?: string | null
+          name: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number
+          id?: string
+          manicurist_id?: string | null
+          name?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_manicurist_id_fkey"
+            columns: ["manicurist_id"]
+            isOneToOne: false
+            referencedRelation: "manicurists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      working_hours: {
+        Row: {
+          day_of_week: number | null
+          end_time: string
+          id: string
+          manicurist_id: string | null
+          start_time: string
+        }
+        Insert: {
+          day_of_week?: number | null
+          end_time: string
+          id?: string
+          manicurist_id?: string | null
+          start_time: string
+        }
+        Update: {
+          day_of_week?: number | null
+          end_time?: string
+          id?: string
+          manicurist_id?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "working_hours_manicurist_id_fkey"
+            columns: ["manicurist_id"]
+            isOneToOne: false
+            referencedRelation: "manicurists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

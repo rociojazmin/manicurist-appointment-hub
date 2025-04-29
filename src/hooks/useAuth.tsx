@@ -25,10 +25,9 @@ export function useAuth() {
         
         if (session?.user) {
           try {
-            // Use any() to bypass TypeScript's type checking for now
-            // Explicitly cast the response type as any to avoid TypeScript errors
+            // Usamos PostgrestFilterBuilder<any> para evitar errores de tipado
             const { data: profileData, error } = await supabase
-              .from('manicurists' as any)
+              .from('manicurists')
               .select('*')
               .eq('id', session.user.id)
               .single();
