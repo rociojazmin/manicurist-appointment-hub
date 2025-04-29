@@ -12,8 +12,10 @@ export function useAuth() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
         setUser(session?.user ?? null);
         
         if (session?.user) {
@@ -28,8 +30,6 @@ export function useAuth() {
               console.error('Error fetching manicurist profile:', error);
               setProfile(null);
             } else {
-              // Como ya hemos ajustado el tipo Manicurist para que coincida con la estructura de la base de datos,
-              // ahora podemos asignar directamente sin conversión de tipo
               setProfile(profileData);
             }
           } catch (error) {
@@ -44,8 +44,9 @@ export function useAuth() {
       }
     );
 
-    // Initial session check
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.email);
       setUser(session?.user ?? null);
       
       if (session?.user) {
@@ -72,21 +73,38 @@ export function useAuth() {
   }, []);
 
   const login = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      console.log("Attempting login for:", email);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log("Login successful:", data?.user?.email);
       navigate('/admin');
+      toast({
+        title: "Inicio de sesión exitoso",
+        description: "Bienvenido/a de nuevo"
+      });
+      
     } catch (error: any) {
+      console.error("Login error:", error.message);
       toast({
         title: "Error al iniciar sesión",
-        description: error.message,
+        description: error.message || "No se pudo iniciar sesión. Por favor intente de nuevo.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (email: string, password: string, name: string) => {
+    setIsLoading(true);
     try {
+      console.log("Attempting registration for:", email);
       const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
@@ -99,8 +117,11 @@ export function useAuth() {
       
       if (signUpError) throw signUpError;
       
-      // Después de registrarse con éxito, crear perfil en la tabla manicurists
+      console.log("Registration successful:", data?.user?.email);
+      
+      // After successful registration, create profile in the manicurists table
       if (data.user) {
+        console.log("Creating profile for:", data.user.id);
         const { error: profileError } = await supabase
           .from('manicurists')
           .insert({
@@ -116,25 +137,45 @@ export function useAuth() {
             description: "Se creó la cuenta pero hubo un problema al crear el perfil",
             variant: "destructive"
           });
+        } else {
+          // Auto-login after successful registration
+          toast({
+            title: "Registro exitoso",
+            description: "Se ha creado su cuenta correctamente"
+          });
+          
+          // Navigate to admin dashboard after successful registration
+          navigate('/admin');
         }
       }
-      
-      toast({
-        title: "Registro exitoso",
-        description: "Por favor verifica tu email para confirmar tu cuenta."
-      });
     } catch (error: any) {
+      console.error("Registration error:", error.message);
       toast({
         title: "Error al registrarse",
-        description: error.message,
+        description: error.message || "No se pudo completar el registro. Por favor intente de nuevo.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Sesión cerrada",
+        description: "Ha cerrado sesión correctamente"
+      });
+      navigate('/');
+    } catch (error: any) {
+      console.error("Logout error:", error.message);
+      toast({
+        title: "Error al cerrar sesión",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   return {
