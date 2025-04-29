@@ -3,7 +3,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import type { Manicurist } from '@/types/database';
+
+// Define the Manicurist type 
+export type Manicurist = {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+};
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,9 +26,9 @@ export function useAuth() {
         if (session?.user) {
           try {
             // Use any() to bypass TypeScript's type checking for now
-            // since our database schema isn't fully recognized by TypeScript yet
+            // Explicitly cast the response type as any to avoid TypeScript errors
             const { data: profileData, error } = await supabase
-              .from('manicurists')
+              .from('manicurists' as any)
               .select('*')
               .eq('id', session.user.id)
               .single();
@@ -44,6 +51,12 @@ export function useAuth() {
       }
     );
 
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -51,7 +64,7 @@ export function useAuth() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      navigate('/admin/dashboard');
+      navigate('/admin');
     } catch (error: any) {
       toast({
         title: "Error al iniciar sesión",
