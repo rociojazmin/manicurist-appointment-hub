@@ -7,6 +7,7 @@ export interface Manicurist {
   phone: string | null;
   created_at: string;
   updated_at: string;
+  email?: string; // Hacer email opcional
 }
 
 export interface Service {
