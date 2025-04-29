@@ -18,13 +18,20 @@ export function useAuth() {
         
         if (session?.user) {
           try {
-            const { data: profile } = await supabase
+            // Use any() to bypass TypeScript's type checking for now
+            // since our database schema isn't fully recognized by TypeScript yet
+            const { data: profileData, error } = await supabase
               .from('manicurists')
               .select('*')
               .eq('id', session.user.id)
               .single();
               
-            setProfile(profile);
+            if (error) {
+              console.error('Error fetching manicurist profile:', error);
+              setProfile(null);
+            } else {
+              setProfile(profileData as Manicurist);
+            }
           } catch (error) {
             console.error('Error fetching manicurist profile:', error);
             setProfile(null);
