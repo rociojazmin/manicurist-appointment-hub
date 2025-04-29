@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,12 +29,13 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <BookingProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <BookingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+
             <Routes>
               {/* Rutas públicas (cliente) */}
               <Route path="/" element={<HomePage />} />
@@ -43,29 +43,32 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/client-info" element={<ClientFormPage />} />
               <Route path="/confirmation" element={<ConfirmationPage />} />
-              
+
               {/* Ruta de login */}
               <Route path="/admin/login" element={<LoginPage />} />
-              
+
               {/* Rutas protegidas (manicurista) */}
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }>
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
                 <Route index element={<DashboardPage />} />
                 <Route path="services" element={<ServiceSettingsPage />} />
                 <Route path="schedule" element={<ScheduleSettingsPage />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
               </Route>
-              
+
               {/* Ruta 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </BookingProvider>
-    </AuthProvider>
+          </TooltipProvider>
+        </BookingProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 
