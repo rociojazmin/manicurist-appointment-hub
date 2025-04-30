@@ -11,14 +11,16 @@ export interface Manicurist {
 }
 
 export interface Service {
-  id: string;
-  manicurist_id: string;
-  name: string;
-  price: number;
-  duration: number;
-  created_at: string;
-  updated_at: string;
+  id: string
+  manicurist_id: string
+  name: string
+  price: number
+  duration: number
+  description: string | null
+  created_at: string
+  updated_at: string
 }
+
 
 export interface WorkingHours {
   id: string;
