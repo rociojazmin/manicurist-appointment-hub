@@ -1,14 +1,15 @@
-import { useState } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
+import { useState } from 'react';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const { login, register } = useAuthContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,7 +26,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isLogin ? "Iniciar sesión" : "Registrarse"}
+            {isLogin ? 'Iniciar sesión' : 'Registrarse'}
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -66,7 +67,7 @@ export default function LoginPage() {
 
           <div>
             <Button type="submit" className="w-full">
-              {isLogin ? "Iniciar sesión" : "Registrarse"}
+              {isLogin ? 'Iniciar sesión' : 'Registrarse'}
             </Button>
           </div>
         </form>
@@ -78,8 +79,8 @@ export default function LoginPage() {
             className="text-sm"
           >
             {isLogin
-              ? "¿No tienes una cuenta? Regístrate"
-              : "¿Ya tienes una cuenta? Inicia sesión"}
+              ? '¿No tienes una cuenta? Regístrate'
+              : '¿Ya tienes una cuenta? Inicia sesión'}
           </Button>
         </div>
       </div>
