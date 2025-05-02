@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, WorkingHours, Service } from "@/types/database";
+import { Appointment, WorkingHours } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 // Horarios base predeterminados si no hay configuración específica

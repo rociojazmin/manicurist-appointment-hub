@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, Service, AppointmentStatus } from "@/types/database";
+import { Appointment, Service } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 const AppointmentsPage = () => {
@@ -48,13 +49,7 @@ const AppointmentsPage = () => {
             variant: "destructive"
           });
         } else {
-          // Cast the status field to AppointmentStatus
-          const formattedAppointments = (data || []).map(appointment => ({
-            ...appointment,
-            status: appointment.status as AppointmentStatus
-          }));
-          
-          setAppointments(formattedAppointments);
+          setAppointments(data || []);
         }
         
         // Cargar servicios para mostrar nombres

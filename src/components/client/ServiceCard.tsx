@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 interface ServiceCardProps {
   id: string;
   name: string;
-  description?: string;  // Make description optional
+  description: string;
   price: number;
   duration: number;
   selected?: boolean;
@@ -14,7 +14,7 @@ interface ServiceCardProps {
 const ServiceCard = ({
   id,
   name,
-  description = "",  // Default to empty string
+  description,
   price,
   duration,
   selected = false,

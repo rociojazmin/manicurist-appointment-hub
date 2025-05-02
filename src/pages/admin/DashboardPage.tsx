@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, Service, AppointmentStatus } from "@/types/database";
+import { Appointment, Service } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 const DashboardPage = () => {
@@ -40,13 +41,7 @@ const DashboardPage = () => {
         if (todayError) {
           console.error('Error fetching today appointments:', todayError);
         } else {
-          // Cast the status field to AppointmentStatus
-          const formattedAppointments = (todayData || []).map(appointment => ({
-            ...appointment,
-            status: appointment.status as AppointmentStatus
-          }));
-          
-          setTodayAppointments(formattedAppointments);
+          setTodayAppointments(todayData || []);
         }
 
         // Cargar estadísticas de citas
@@ -252,7 +247,7 @@ const DashboardPage = () => {
             >
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 1 0 7.75" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </CardHeader>
           <CardContent>
