@@ -1,3 +1,4 @@
+
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export interface Manicurist {
@@ -17,6 +18,7 @@ export interface Service {
   duration: number;
   created_at: string;
   updated_at: string;
+  description?: string | null; // Añadiendo description como opcional
 }
 
 export interface WorkingHours {

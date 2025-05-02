@@ -1,14 +1,6 @@
 
 import React, { createContext, useContext, useState } from "react";
-
-// Definir tipos
-type Service = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  duration: number; // en minutos
-};
+import { Service } from "@/types/database";
 
 type ClientInfo = {
   name: string;

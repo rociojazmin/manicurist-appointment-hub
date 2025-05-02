@@ -98,7 +98,7 @@ const ServiceSelectionPage = () => {
                   key={service.id}
                   id={service.id}
                   name={service.name}
-                  description=""
+                  description={service.description || ""}
                   price={service.price}
                   duration={service.duration}
                   selected={localSelectedService === service.id}

@@ -11,6 +11,7 @@ import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Appointment, WorkingHours } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Horarios base predeterminados si no hay configuración específica
 const DEFAULT_TIMES = [
@@ -49,6 +50,7 @@ const CalendarPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile } = useAuthContext();
+  const isMobile = useIsMobile();
   
   // Verificar si hay un servicio seleccionado
   useEffect(() => {
