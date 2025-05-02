@@ -1,27 +1,25 @@
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, isToday, isFuture, isPast, addDays, isAfter, isBefore } from "date-fns";
+import { format, isToday, isFuture, isPast } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, Service } from "@/types/database";
+import { Appointment, Service, AppointmentStatus } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
+
+// Import our new components
+import AppointmentList from "@/components/admin/appointments/AppointmentList";
+import AppointmentDetails from "@/components/admin/appointments/AppointmentDetails";
+import DateSelector from "@/components/admin/appointments/DateSelector";
 
 const AppointmentsPage = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Record<string, Service>>({});
   const { toast } = useToast();
@@ -103,7 +101,7 @@ const AppointmentsPage = () => {
       })
     : [];
 
-  const handleStatus = async (id: string, newStatus: Appointment["status"]) => {
+  const handleStatus = async (id: string, newStatus: AppointmentStatus) => {
     if (!profile) return;
     
     try {
@@ -149,11 +147,10 @@ const AppointmentsPage = () => {
 
   const handleOpenDetails = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
-    setNotes(appointment.notes || "");
     setIsDetailsOpen(true);
   };
 
-  const handleUpdateNotes = async () => {
+  const handleUpdateNotes = async (notes: string) => {
     if (!selectedAppointment) return;
 
     try {
@@ -192,84 +189,6 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusColor = (status: Appointment["status"]) => {
-    switch (status) {
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "pending": return "bg-amber-100 text-amber-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      case "completed": return "bg-blue-100 text-blue-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getStatusText = (status: Appointment["status"]) => {
-    switch (status) {
-      case "confirmed": return "Confirmado";
-      case "pending": return "Pendiente";
-      case "cancelled": return "Cancelado";
-      case "completed": return "Completado";
-      default: return status;
-    }
-  };
-
-  const renderAppointmentCard = (appointment: Appointment) => (
-    <div key={appointment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-medium">{appointment.client_name}</h3>
-          <p className="text-sm text-muted-foreground">
-            {services[appointment.service_id || '']?.name || 'Servicio no encontrado'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(appointment.appointment_date), "d MMM yyyy", { locale: es })} - {appointment.appointment_time}
-          </p>
-        </div>
-        <Badge className={getStatusColor(appointment.status)}>
-          {getStatusText(appointment.status)}
-        </Badge>
-      </div>
-      <div className="mt-4 flex space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleOpenDetails(appointment)}
-        >
-          Detalles
-        </Button>
-        {appointment.status === "pending" && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-green-600 border-green-600 hover:bg-green-50"
-              onClick={() => handleStatus(appointment.id, "confirmed")}
-            >
-              Confirmar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-red-600 border-red-600 hover:bg-red-50"
-              onClick={() => handleStatus(appointment.id, "cancelled")}
-            >
-              Cancelar
-            </Button>
-          </>
-        )}
-        {appointment.status === "confirmed" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-blue-600 border-blue-600 hover:bg-blue-50"
-            onClick={() => handleStatus(appointment.id, "completed")}
-          >
-            Completar
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -297,31 +216,11 @@ const AppointmentsPage = () => {
         
         <TabsContent value="all">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="md:col-span-1">
-              <CardHeader>
-                <CardTitle>Selecciona una Fecha</CardTitle>
-                <CardDescription>
-                  Visualiza los turnos para un día específico
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="border rounded-md p-3 pointer-events-auto"
-                  locale={es}
-                />
-                <div className="mt-4 space-y-2">
-                  <p className="text-sm font-medium">
-                    {selectedDate ? format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", { locale: es }) : "Ninguna fecha seleccionada"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {dateAppointments.length} {dateAppointments.length === 1 ? "turno" : "turnos"} para esta fecha
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <DateSelector 
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              appointmentCount={dateAppointments.length}
+            />
 
             <Card className="md:col-span-2">
               <CardHeader>
@@ -334,17 +233,14 @@ const AppointmentsPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dateAppointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {dateAppointments
-                      .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
-                      .map(renderAppointmentCard)}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">
-                    No hay turnos agendados para esta fecha
-                  </p>
-                )}
+                <AppointmentList 
+                  appointments={dateAppointments}
+                  services={services}
+                  onOpenDetails={handleOpenDetails}
+                  onStatusChange={handleStatus}
+                  emptyMessage="No hay turnos agendados para esta fecha"
+                  sortComparer={(a, b) => a.appointment_time.localeCompare(b.appointment_time)}
+                />
               </CardContent>
             </Card>
           </div>
@@ -359,17 +255,14 @@ const AppointmentsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {todayAppointments.length > 0 ? (
-                <div className="space-y-4">
-                  {todayAppointments
-                    .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
-                    .map(renderAppointmentCard)}
-                </div>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No hay turnos agendados para hoy
-                </p>
-              )}
+              <AppointmentList 
+                appointments={todayAppointments}
+                services={services}
+                onOpenDetails={handleOpenDetails}
+                onStatusChange={handleStatus}
+                emptyMessage="No hay turnos agendados para hoy"
+                sortComparer={(a, b) => a.appointment_time.localeCompare(b.appointment_time)}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -383,25 +276,22 @@ const AppointmentsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {upcomingAppointments.length > 0 ? (
-                <div className="space-y-4">
-                  {upcomingAppointments
-                    .sort((a, b) => {
-                      // Ordenar por fecha primero, luego por hora
-                      const dateA = new Date(a.appointment_date);
-                      const dateB = new Date(b.appointment_date);
-                      if (dateA.getTime() !== dateB.getTime()) {
-                        return dateA.getTime() - dateB.getTime();
-                      }
-                      return a.appointment_time.localeCompare(b.appointment_time);
-                    })
-                    .map(renderAppointmentCard)}
-                </div>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No hay próximos turnos agendados
-                </p>
-              )}
+              <AppointmentList 
+                appointments={upcomingAppointments}
+                services={services}
+                onOpenDetails={handleOpenDetails}
+                onStatusChange={handleStatus}
+                emptyMessage="No hay próximos turnos agendados"
+                sortComparer={(a, b) => {
+                  // Ordenar por fecha primero, luego por hora
+                  const dateA = new Date(a.appointment_date);
+                  const dateB = new Date(b.appointment_date);
+                  if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA.getTime() - dateB.getTime();
+                  }
+                  return a.appointment_time.localeCompare(b.appointment_time);
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -415,99 +305,36 @@ const AppointmentsPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {pastAppointments.length > 0 ? (
-                <div className="space-y-4">
-                  {pastAppointments
-                    .sort((a, b) => {
-                      // Ordenar por fecha desc, más recientes primero
-                      const dateA = new Date(a.appointment_date);
-                      const dateB = new Date(b.appointment_date);
-                      if (dateA.getTime() !== dateB.getTime()) {
-                        return dateB.getTime() - dateA.getTime();
-                      }
-                      return b.appointment_time.localeCompare(a.appointment_time);
-                    })
-                    .map(renderAppointmentCard)}
-                </div>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No hay turnos anteriores
-                </p>
-              )}
+              <AppointmentList 
+                appointments={pastAppointments}
+                services={services}
+                onOpenDetails={handleOpenDetails}
+                onStatusChange={handleStatus}
+                emptyMessage="No hay turnos anteriores"
+                sortComparer={(a, b) => {
+                  // Ordenar por fecha desc, más recientes primero
+                  const dateA = new Date(a.appointment_date);
+                  const dateB = new Date(b.appointment_date);
+                  if (dateA.getTime() !== dateB.getTime()) {
+                    return dateB.getTime() - dateA.getTime();
+                  }
+                  return b.appointment_time.localeCompare(a.appointment_time);
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalles del Turno</DialogTitle>
-            <DialogDescription>
-              Información completa del turno seleccionado
-            </DialogDescription>
-          </DialogHeader>
-          {selectedAppointment && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Cliente</Label>
-                  <p className="font-medium">{selectedAppointment.client_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Teléfono</Label>
-                  <p className="font-medium">{selectedAppointment.client_phone}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Servicio</Label>
-                  <p className="font-medium">
-                    {services[selectedAppointment.service_id || '']?.name || 'Servicio no encontrado'}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Estado</Label>
-                  <Badge className={`mt-1 ${getStatusColor(selectedAppointment.status)}`}>
-                    {getStatusText(selectedAppointment.status)}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Fecha</Label>
-                  <p className="font-medium">
-                    {format(new Date(selectedAppointment.appointment_date), "d MMMM yyyy", { locale: es })}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Hora</Label>
-                  <p className="font-medium">{selectedAppointment.appointment_time}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm text-muted-foreground">Notas</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Añade notas sobre este turno..."
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdateNotes}>
-              Guardar Cambios
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        {selectedAppointment && (
+          <AppointmentDetails
+            appointment={selectedAppointment}
+            services={services}
+            onSaveNotes={handleUpdateNotes}
+            onClose={() => setIsDetailsOpen(false)}
+          />
+        )}
       </Dialog>
     </div>
   );
