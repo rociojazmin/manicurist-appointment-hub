@@ -1,127 +1,136 @@
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { useBooking } from "@/contexts/BookingContext";
+import ClientLayout from "@/components/layouts/ClientLayout";
 import ServiceCard from "@/components/client/ServiceCard";
-import { useBookingContext } from "@/contexts/BookingContext";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Service } from "@/types/database";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const ServiceSelectionPage = () => {
+  const { selectedService, setSelectedService } = useBooking();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { profile } = useAuthContext();
+  const [localSelectedService, setLocalSelectedService] = useState<string | null>(
+    selectedService?.id || null
+  );
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const { selectedService, setSelectedService } = useBookingContext();
-  const navigate = useNavigate();
 
+  // Cargar servicios desde la base de datos
   useEffect(() => {
     const fetchServices = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        // Fetch the manicurist ID first since we don't have authentication for clients
-        const { data: manicurists, error: manicuristError } = await supabase
-          .from('manicurists')
-          .select('id')
-          .limit(1);  // For now, just get the first one
-
-        if (manicuristError || !manicurists || manicurists.length === 0) {
-          console.error("Error fetching manicurist:", manicuristError);
-          return;
-        }
-
-        const manicuristId = manicurists[0].id;
-
-        // Then fetch services for this manicurist
-        const { data, error } = await supabase
-          .from('services')
-          .select('*')
-          .eq('manicurist_id', manicuristId);
-
+        // Si tenemos un perfil de manicurista, obtener sus servicios
+        // Si no, obtener todos los servicios
+        const query = profile 
+          ? supabase.from('services').select('*').eq('manicurist_id', profile.id)
+          : supabase.from('services').select('*');
+        
+        const { data, error } = await query;
+        
         if (error) {
-          console.error("Error fetching services:", error);
-          return;
+          console.error('Error fetching services:', error);
+          toast({
+            title: "Error al cargar servicios",
+            description: "No se pudieron cargar los servicios. Por favor, inténtelo de nuevo.",
+            variant: "destructive"
+          });
+          setServices([]);
+        } else {
+          setServices(data || []);
         }
-
-        // Ensure we have the correct type
-        const typedServices: Service[] = data || [];
-        setServices(typedServices);
       } catch (error) {
-        console.error("Error:", error);
+        console.error('Error:', error);
+        setServices([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchServices();
-  }, []);
+  }, [toast, profile]);
 
-  const handleSelectService = (service: Service) => {
-    setSelectedService(service);
+  useEffect(() => {
+    if (selectedService) {
+      setLocalSelectedService(selectedService.id);
+    }
+  }, [selectedService]);
+
+  const handleServiceSelect = (serviceId: string) => {
+    setLocalSelectedService(serviceId);
   };
 
   const handleContinue = () => {
-    if (selectedService) {
-      navigate("/calendar");
+    if (localSelectedService) {
+      const service = services.find((s) => s.id === localSelectedService);
+      if (service) {
+        setSelectedService(service);
+        navigate("/calendar");
+      }
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto max-w-4xl py-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto max-w-4xl py-6 px-4">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Selecciona un servicio</h1>
-          <p className="text-muted-foreground">
-            Elige el servicio que deseas agendar
-          </p>
-        </div>
+    <ClientLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold mb-4">Selecciona un Servicio</h1>
+            <p className="text-muted-foreground">
+              Elige el servicio que deseas reservar para continuar con tu reserva
+            </p>
+          </div>
 
-        <Separator />
-
-        <div className="grid grid-cols-1 gap-4">
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              isSelected={selectedService?.id === service.id}
-              onSelect={() => handleSelectService(service)}
-            />
-          ))}
-        </div>
-
-        {services.length === 0 && (
-          <Card>
-            <CardContent className="py-10">
-              <p className="text-center text-muted-foreground">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : services.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  id={service.id}
+                  name={service.name}
+                  description=""
+                  price={service.price}
+                  duration={service.duration}
+                  selected={localSelectedService === service.id}
+                  onClick={() => handleServiceSelect(service.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
                 No hay servicios disponibles en este momento.
               </p>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t flex justify-between">
-          <Button variant="outline" onClick={() => navigate("/")}>
-            Atrás
-          </Button>
-          <Button
-            onClick={handleContinue}
-            disabled={!selectedService}
-          >
-            Continuar
-          </Button>
+          <div className="flex justify-between items-center mt-8">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/")}
+            >
+              Volver
+            </Button>
+            <Button
+              onClick={handleContinue}
+              disabled={!localSelectedService || services.length === 0}
+            >
+              Continuar
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </ClientLayout>
   );
 };
 
