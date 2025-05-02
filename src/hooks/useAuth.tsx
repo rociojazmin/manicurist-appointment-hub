@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,62 +11,63 @@ export function useAuth() {
   const [profile, setProfile] = useState<Manicurist | null>(null);
   const navigate = useNavigate();
 
+  // Helper: fetch or create profile for logged user
+  const syncProfile = async (user: User) => {
+    try {
+      const { data: profileData, error: selectError } = await supabase
+        .from("manicurists")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      // No profile exists → create it
+      if (selectError && selectError.code === "PGRST116") {
+        const name = user.user_metadata?.name || "";
+        await supabase.from("manicurists").insert({
+          id: user.id,
+          name,
+          phone: null,
+        });
+        setProfile({
+          id: user.id,
+          name,
+          phone: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      } else if (profileData) {
+        setProfile(profileData);
+      } else {
+        console.error("Error syncing profile:", selectError);
+        setProfile(null);
+      }
+    } catch (err) {
+      console.error("Unexpected error syncing profile:", err);
+      setProfile(null);
+    }
+  };
+
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Listen to auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
-
       if (session?.user) {
-        try {
-          const { data: profileData, error } = await supabase
-            .from("manicurists")
-            .select("*")
-            .eq("id", session.user.id)
-            .single();
-
-          if (error) {
-            console.error("Error fetching manicurist profile:", error);
-            setProfile(null);
-          } else {
-            setProfile(profileData);
-          }
-        } catch (error) {
-          console.error("Error fetching manicurist profile:", error);
-          setProfile(null);
-        }
+        await syncProfile(session.user);
       } else {
         setProfile(null);
       }
-
       setIsLoading(false);
     });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Initial session check:", session?.user?.email);
+    // Initial session check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-
       if (session?.user) {
-        // Fetch user profile on initial load
-        supabase
-          .from("manicurists")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Error fetching initial profile:", error);
-            } else {
-              setProfile(data);
-            }
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
+        await syncProfile(session.user);
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -76,38 +76,25 @@ export function useAuth() {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log("Attempting login for:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      if (error) {
-        throw error;
-      }
-
-      console.log("Login successful:", data?.user?.email);
+      if (error) throw error;
       toast({
         title: "Inicio de sesión exitoso",
         description: "Bienvenido/a de nuevo",
       });
       navigate("/admin");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Log in Error:", error.message);
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        console.error("Unexpected error", error);
-        toast({
-          title: "Error al iniciar sesión",
-          description: "No se pudo inicar sesión. Por favor, intente denuevo",
-          variant: "destructive",
-        });
-      }
+      const message =
+        error instanceof Error ? error.message : "Error inesperado";
+      toast({
+        title: "Error de inicio",
+        description: message,
+        variant: "destructive",
+      });
+      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -116,79 +103,31 @@ export function useAuth() {
   const register = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      console.log("Attempting registration for:", email);
-      
-      // Step 1: Sign up the user
-      const { error: signUpError, data } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name,
-          },
-        },
+        options: { data: { name } },
       });
 
       if (signUpError) throw signUpError;
 
-      console.log("Registration successful:", data?.user?.email);
-
-      // Step 2: After successful registration, create profile in the manicurists table
-      if (data.user) {
-        console.log("Creating profile for:", data.user.id);
-        const { error: profileError } = await supabase
-          .from("manicurists")
-          .insert({
-            id: data.user.id,
-            name: name,
-            phone: null,
-          });
-
-        if (profileError) {
-          console.error("Error creating manicurist profile:", profileError);
-          toast({
-            title: "Error al crear perfil",
-            description: "Se creó la cuenta pero hubo un problema al crear el perfil",
-            variant: "destructive",
-          });
-          // Even if there's an error with profile creation, we'll still navigate to admin
-        }
-        
-        // If we reach this point, registration was successful
-        toast({
-          title: "Registro exitoso",
-          description: "Se ha creado su cuenta correctamente",
-        });
-        
-        // Navigate to admin dashboard after successful registration
-        navigate("/admin");
+      // En producción, confirmación de e-mail obliga a esperar
+      if (!data.session) {
+        toast({ title: "Revisa tu e‑mail para confirmar la cuenta" });
+        return;
       }
+
+      toast({ title: "Registro exitoso", description: "¡Bienvenido!" });
+      navigate("/admin");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Sign up Error:", error.message);
-        
-        // Handle specific error cases
-        if (error.message.includes("already registered")) {
-          toast({
-            title: "Error de registro",
-            description: "Este email ya está registrado. Por favor inicie sesión.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      } else {
-        console.error("Unexpected error", error);
-        toast({
-          title: "Error al registrarse",
-          description: "No se pudo registrarse. Por favor, intente denuevo",
-          variant: "destructive",
-        });
-      }
+      const message =
+        error instanceof Error ? error.message : "Error inesperado";
+      toast({
+        title: "Error de registro",
+        description: message,
+        variant: "destructive",
+      });
+      console.error("Register error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -197,27 +136,17 @@ export function useAuth() {
   const logout = async () => {
     try {
       await supabase.auth.signOut();
-      toast({
-        title: "Sesión cerrada",
-        description: "Ha cerrado sesión correctamente",
-      });
+      toast({ title: "Sesión cerrada" });
       navigate("/");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Sign out Error:", error.message);
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        console.error("Unexpected error", error);
-        toast({
-          title: "Error al cerrar sesión",
-          description: "No se pudo cerrar sesión. Por favor, intente denuevo",
-          variant: "destructive",
-        });
-      }
+      const message =
+        error instanceof Error ? error.message : "Error inesperado";
+      toast({
+        title: "Error al cerrar sesión",
+        description: message,
+        variant: "destructive",
+      });
+      console.error("Logout error:", error);
     }
   };
 
