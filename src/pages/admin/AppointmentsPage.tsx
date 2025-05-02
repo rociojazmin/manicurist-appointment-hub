@@ -48,13 +48,13 @@ const AppointmentsPage = () => {
             variant: "destructive"
           });
         } else {
-          // Apply type assertion to ensure the status is of type AppointmentStatus
-          const typedAppointments = (data || []).map(apt => ({
-            ...apt,
-            status: apt.status as AppointmentStatus
-          })) as Appointment[];
+          // Cast the status field to AppointmentStatus
+          const formattedAppointments = (data || []).map(appointment => ({
+            ...appointment,
+            status: appointment.status as AppointmentStatus
+          }));
           
-          setAppointments(typedAppointments);
+          setAppointments(formattedAppointments);
         }
         
         // Cargar servicios para mostrar nombres
@@ -68,7 +68,7 @@ const AppointmentsPage = () => {
         } else {
           const servicesMap: Record<string, Service> = {};
           servicesData?.forEach(service => {
-            servicesMap[service.id] = service as Service;
+            servicesMap[service.id] = service;
           });
           setServices(servicesMap);
         }
@@ -197,7 +197,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusColor = (status: AppointmentStatus) => {
+  const getStatusColor = (status: Appointment["status"]) => {
     switch (status) {
       case "confirmed": return "bg-green-100 text-green-800";
       case "pending": return "bg-amber-100 text-amber-800";
@@ -207,7 +207,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusText = (status: AppointmentStatus) => {
+  const getStatusText = (status: Appointment["status"]) => {
     switch (status) {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";

@@ -1,51 +1,41 @@
 
-import React from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils"; // Asumiendo que tienes esta función de utilidad
+import { cn } from "@/lib/utils";
 
-export interface ServiceCardProps {
+interface ServiceCardProps {
+  id: string;
   name: string;
+  description?: string;  // Make description optional
   price: number;
   duration: number;
-  description?: string;
-  isSelected: boolean;
-  onSelect: () => void;
+  selected?: boolean;
+  onClick: () => void;
 }
 
-const ServiceCard = ({ 
-  name, 
-  price, 
-  duration, 
-  description, 
-  isSelected, 
-  onSelect 
+const ServiceCard = ({
+  id,
+  name,
+  description = "",  // Default to empty string
+  price,
+  duration,
+  selected = false,
+  onClick,
 }: ServiceCardProps) => {
   return (
-    <Card 
-      className={`cursor-pointer transition-all ${
-        isSelected 
-          ? 'border-2 border-primary shadow-md'
-          : 'hover:border-primary/50'
-      }`}
-      onClick={onSelect}
+    <div 
+      className={cn(
+        "service-card group",
+        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+      )}
+      onClick={onClick}
     >
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start gap-4">
-          <div className="flex-1">
-            <h3 className="font-medium mb-1">{name}</h3>
-            {description && (
-              <p className="text-sm text-muted-foreground mb-2">{description}</p>
-            )}
-            <span className="text-sm text-muted-foreground">
-              Duración: {duration} minutos
-            </span>
-          </div>
-          <div className="text-right">
-            <p className="font-medium">{formatCurrency(price)}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <h3 className="service-card__title">{name}</h3>
+      <p className="text-sm text-muted-foreground text-center mt-2 mb-4">{description}</p>
+      <div className="mt-auto flex justify-between items-center">
+        <span className="font-medium text-foreground">${price}</span>
+        <span className="text-sm text-muted-foreground">{duration} min</span>
+      </div>
+    </div>
   );
 };
 

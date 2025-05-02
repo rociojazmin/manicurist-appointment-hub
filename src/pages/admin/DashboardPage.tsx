@@ -40,13 +40,13 @@ const DashboardPage = () => {
         if (todayError) {
           console.error('Error fetching today appointments:', todayError);
         } else {
-          // Apply type assertion to ensure the status is of type AppointmentStatus
-          const typedAppointments = (todayData || []).map(apt => ({
-            ...apt,
-            status: apt.status as AppointmentStatus
-          })) as Appointment[];
+          // Cast the status field to AppointmentStatus
+          const formattedAppointments = (todayData || []).map(appointment => ({
+            ...appointment,
+            status: appointment.status as AppointmentStatus
+          }));
           
-          setTodayAppointments(typedAppointments);
+          setTodayAppointments(formattedAppointments);
         }
 
         // Cargar estadísticas de citas
@@ -93,7 +93,7 @@ const DashboardPage = () => {
         } else {
           const servicesMap: Record<string, Service> = {};
           servicesData?.forEach(service => {
-            servicesMap[service.id] = service as Service;
+            servicesMap[service.id] = service;
           });
           setServices(servicesMap);
         }
@@ -118,7 +118,7 @@ const DashboardPage = () => {
     }
   }, [profile]);
 
-  const getStatusColor = (status: AppointmentStatus) => {
+  const getStatusColor = (status: Appointment["status"]) => {
     switch (status) {
       case "confirmed": return "text-green-600 bg-green-100";
       case "pending": return "text-amber-600 bg-amber-100";
@@ -128,7 +128,7 @@ const DashboardPage = () => {
     }
   };
 
-  const getStatusText = (status: AppointmentStatus) => {
+  const getStatusText = (status: Appointment["status"]) => {
     switch (status) {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";

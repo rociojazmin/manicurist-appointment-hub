@@ -1,6 +1,9 @@
 
 import React, { createContext, useContext, useState } from "react";
-import { Service } from "@/types/database";
+import { Service as DatabaseService } from "@/types/database";
+
+// Use the Service type from database.ts
+type Service = DatabaseService;
 
 type ClientInfo = {
   name: string;
@@ -20,10 +23,10 @@ type BookingContextType = {
   resetBooking: () => void;
 };
 
-// Crear el contexto
+// Create context
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
-// Hook para usar el contexto
+// Hook to use context
 export const useBooking = () => {
   const context = useContext(BookingContext);
   if (context === undefined) {
@@ -32,7 +35,7 @@ export const useBooking = () => {
   return context;
 };
 
-// Proveedor del contexto
+// Context provider
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
