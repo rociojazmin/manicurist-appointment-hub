@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,11 +87,11 @@ export function useAuth() {
       }
 
       console.log("Login successful:", data?.user?.email);
-      navigate("/admin");
       toast({
         title: "Inicio de sesión exitoso",
         description: "Bienvenido/a de nuevo",
       });
+      navigate("/admin");
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error("Log in Error:", error.message);
@@ -116,6 +117,8 @@ export function useAuth() {
     setIsLoading(true);
     try {
       console.log("Attempting registration for:", email);
+      
+      // Step 1: Sign up the user
       const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
@@ -130,7 +133,7 @@ export function useAuth() {
 
       console.log("Registration successful:", data?.user?.email);
 
-      // After successful registration, create profile in the manicurists table
+      // Step 2: After successful registration, create profile in the manicurists table
       if (data.user) {
         console.log("Creating profile for:", data.user.id);
         const { error: profileError } = await supabase
@@ -145,29 +148,39 @@ export function useAuth() {
           console.error("Error creating manicurist profile:", profileError);
           toast({
             title: "Error al crear perfil",
-            description:
-              "Se creó la cuenta pero hubo un problema al crear el perfil",
+            description: "Se creó la cuenta pero hubo un problema al crear el perfil",
             variant: "destructive",
           });
-        } else {
-          // Auto-login after successful registration
-          toast({
-            title: "Registro exitoso",
-            description: "Se ha creado su cuenta correctamente",
-          });
-
-          // Navigate to admin dashboard after successful registration
-          navigate("/admin");
+          // Even if there's an error with profile creation, we'll still navigate to admin
         }
+        
+        // If we reach this point, registration was successful
+        toast({
+          title: "Registro exitoso",
+          description: "Se ha creado su cuenta correctamente",
+        });
+        
+        // Navigate to admin dashboard after successful registration
+        navigate("/admin");
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error("Sign up Error:", error.message);
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        
+        // Handle specific error cases
+        if (error.message.includes("already registered")) {
+          toast({
+            title: "Error de registro",
+            description: "Este email ya está registrado. Por favor inicie sesión.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       } else {
         console.error("Unexpected error", error);
         toast({

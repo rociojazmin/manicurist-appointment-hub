@@ -64,16 +64,19 @@ export type Database = {
           exception_date: string
           id: string
           manicurist_id: string | null
+          user_id: string | null
         }
         Insert: {
           exception_date: string
           id?: string
           manicurist_id?: string | null
+          user_id?: string | null
         }
         Update: {
           exception_date?: string
           id?: string
           manicurist_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
