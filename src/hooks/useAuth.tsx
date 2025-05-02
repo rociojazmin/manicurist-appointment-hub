@@ -11,10 +11,17 @@ export function useAuth() {
   const [profile, setProfile] = useState<Manicurist | null>(null);
   const navigate = useNavigate();
 
+  // Redirigir si ya está logueado y tiene perfil
+  useEffect(() => {
+    if (user && profile) {
+      navigate("/admin");
+    }
+  }, [user, profile, navigate]);
+
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
@@ -29,8 +36,6 @@ export function useAuth() {
             console.error("Error fetching manicurist profile:", error);
             setProfile(null);
           } else {
-            // Como ya hemos ajustado el tipo Manicurist para que coincida con la estructura de la base de datos,
-            // ahora podemos asignar directamente sin conversión de tipo
             setProfile(profileData);
           }
         } catch (error) {
@@ -44,28 +49,25 @@ export function useAuth() {
       setIsLoading(false);
     });
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Carga inicial
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Fetch user profile on initial load
-        supabase
+        const { data, error } = await supabase
           .from("manicurists")
           .select("*")
           .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Error fetching initial profile:", error);
-            } else {
-              setProfile(data);
-            }
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
+          .single();
+
+        if (error) {
+          console.error("Error fetching initial profile:", error);
+        } else {
+          setProfile(data);
+        }
       }
+
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -78,7 +80,7 @@ export function useAuth() {
         password,
       });
       if (error) throw error;
-      navigate("/admin");
+      // redirección automática manejada por useEffect
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast({
@@ -111,7 +113,6 @@ export function useAuth() {
 
       if (signUpError) throw signUpError;
 
-      // Después de registrarse con éxito, crear perfil en la tabla manicurists
       if (data.user) {
         const { error: profileError } = await supabase
           .from("manicurists")
@@ -136,6 +137,8 @@ export function useAuth() {
         title: "Registro exitoso",
         description: "Por favor verifica tu email para confirmar tu cuenta.",
       });
+
+      // La redirección se hará automáticamente si el usuario verifica el correo y se loguea
     } catch (error: unknown) {
       if (error instanceof Error) {
         toast({

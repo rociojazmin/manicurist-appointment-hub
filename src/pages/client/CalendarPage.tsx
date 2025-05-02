@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format, addDays, setHours, setMinutes, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
@@ -21,63 +20,62 @@ const CalendarPage = () => {
   const navigate = useNavigate();
   const [date, setDate] = useState<Date | undefined>(addDays(new Date(), 1));
   const [availableTimes, setAvailableTimes] = useState<TimeSlot[]>([]);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { selectedService, selectedDate, selectedTime: contextSelectedTime, setSelectedDate, setSelectedTime } = useBooking();
+  const {
+    selectedService,
+    selectedDate,
+    selectedTime: contextSelectedTime,
+    setSelectedDate,
+    setSelectedTime,
+  } = useBooking();
 
-  // Buscar horarios disponibles cuando cambia la fecha seleccionada
   useEffect(() => {
     if (!date || !selectedService) return;
 
     const fetchAvailableTimes = async () => {
       setLoading(true);
-      setSelectedTime(null);
-      
+      setSelectedTime(null); // usamos la función del contexto
+
       try {
         const formattedDate = format(date, "yyyy-MM-dd");
-        
-        // En una app real, esto debería verificar la disponibilidad del manicurista,
-        // considerando su horario, excepciones y citas existentes.
-        // Por ahora, generaremos tiempos ficticios.
-        
-        const startHour = 9; // 9 AM
-        const endHour = 18; // 6 PM
-        const duration = selectedService.duration; // en minutos
+
+        const startHour = 9;
+        const endHour = 18;
+        const duration = selectedService.duration;
         const slots: TimeSlot[] = [];
-        
-        // Crear slots cada 'duration' minutos
+
         for (let hour = startHour; hour < endHour; hour++) {
           for (let minute = 0; minute < 60; minute += duration) {
             const timeSlot = setMinutes(setHours(new Date(), hour), minute);
-            
-            // No agregar horarios pasados si es hoy
-            if (format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") && 
-                isBefore(timeSlot, new Date())) {
+
+            if (
+              format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") &&
+              isBefore(timeSlot, new Date())
+            ) {
               continue;
             }
-            
-            slots.push({ 
+
+            slots.push({
               date: formattedDate,
-              time: format(timeSlot, "HH:mm") 
+              time: format(timeSlot, "HH:mm"),
             });
           }
         }
-        
-        // Simular verificar conflictos con citas existentes
+
         const { data: appointments } = await supabase
-          .from('appointments')
-          .select('appointment_time')
-          .eq('appointment_date', formattedDate)
-          .eq('manicurist_id', selectedService.manicurist_id);
-          
-        const bookedTimes = appointments?.map(apt => apt.appointment_time) || [];
-        
-        // Filtrar horarios ya reservados
-        const availableSlots = slots.filter(slot => 
-          !bookedTimes.includes(slot.time)
+          .from("appointments")
+          .select("appointment_time")
+          .eq("appointment_date", formattedDate)
+          .eq("manicurist_id", selectedService.manicurist_id);
+
+        const bookedTimes =
+          appointments?.map((apt) => apt.appointment_time) || [];
+
+        const availableSlots = slots.filter(
+          (slot) => !bookedTimes.includes(slot.time)
         );
-        
+
         setAvailableTimes(availableSlots);
       } catch (error) {
         console.error("Error fetching available times:", error);
@@ -92,47 +90,45 @@ const CalendarPage = () => {
     };
 
     fetchAvailableTimes();
-  }, [date, selectedService, toast]);
+  }, [date, selectedService, toast, setSelectedTime]);
 
-  // Guardar fecha y hora seleccionadas en el contexto y avanzar
   const handleContinue = () => {
-    if (date && selectedTime) {
+    if (date && contextSelectedTime) {
       setSelectedDate(date);
-      setSelectedTime(selectedTime);
-      navigate('/client-info');
+      navigate("/client-info");
     }
   };
 
   const handleBack = () => {
-    navigate('/services');
+    navigate("/services");
   };
 
   const handleSelectTime = (time: string) => {
-    setSelectedTime(time);
+    setSelectedTime(time); // usamos el contexto
   };
 
-  // Si no hay servicio seleccionado, redirigir a la selección de servicio
   useEffect(() => {
     if (!selectedService) {
-      navigate('/services');
+      navigate("/services");
     }
   }, [selectedService, navigate]);
 
   return (
     <div className="container max-w-md mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Selecciona Fecha y Hora</h1>
-      
+
       <div className="mb-8">
         <Calendar
           mode="single"
           selected={date}
           onSelect={setDate}
           disabled={(date) => {
-            // Deshabilitar fechas pasadas y más de 30 días en el futuro
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const thirtyDaysLater = addDays(today, 30);
-            return date ? isBefore(date, today) || isBefore(thirtyDaysLater, date) : false;
+            return date
+              ? isBefore(date, today) || isBefore(thirtyDaysLater, date)
+              : false;
           }}
           locale={es}
           className="rounded-md border shadow p-3 w-full mb-4"
@@ -147,7 +143,9 @@ const CalendarPage = () => {
           availableTimes.map((slot, index) => (
             <Button
               key={index}
-              variant={selectedTime === slot.time ? "default" : "outline"}
+              variant={
+                contextSelectedTime === slot.time ? "default" : "outline"
+              }
               onClick={() => handleSelectTime(slot.time)}
               className="text-center"
             >
@@ -167,7 +165,7 @@ const CalendarPage = () => {
         <Button variant="outline" onClick={handleBack}>
           Volver
         </Button>
-        <Button onClick={handleContinue} disabled={!selectedTime}>
+        <Button onClick={handleContinue} disabled={!contextSelectedTime}>
           Continuar
         </Button>
       </div>
