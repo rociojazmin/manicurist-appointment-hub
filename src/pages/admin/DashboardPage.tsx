@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, Service } from "@/types/database";
+import { Appointment, Service, AppointmentStatus } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 const DashboardPage = () => {
@@ -41,7 +41,13 @@ const DashboardPage = () => {
         if (todayError) {
           console.error('Error fetching today appointments:', todayError);
         } else {
-          setTodayAppointments(todayData || []);
+          // Apply type assertion to ensure the status is of type AppointmentStatus
+          const typedAppointments = (todayData || []).map(apt => ({
+            ...apt,
+            status: apt.status as AppointmentStatus
+          })) as Appointment[];
+          
+          setTodayAppointments(typedAppointments);
         }
 
         // Cargar estadísticas de citas
@@ -113,7 +119,7 @@ const DashboardPage = () => {
     }
   }, [profile]);
 
-  const getStatusColor = (status: Appointment["status"]) => {
+  const getStatusColor = (status: AppointmentStatus) => {
     switch (status) {
       case "confirmed": return "text-green-600 bg-green-100";
       case "pending": return "text-amber-600 bg-amber-100";
@@ -123,7 +129,7 @@ const DashboardPage = () => {
     }
   };
 
-  const getStatusText = (status: Appointment["status"]) => {
+  const getStatusText = (status: AppointmentStatus) => {
     switch (status) {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";

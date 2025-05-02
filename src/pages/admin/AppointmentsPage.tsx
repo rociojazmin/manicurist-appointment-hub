@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, Service } from "@/types/database";
+import { Appointment, Service, AppointmentStatus } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 const AppointmentsPage = () => {
@@ -49,7 +48,13 @@ const AppointmentsPage = () => {
             variant: "destructive"
           });
         } else {
-          setAppointments(data || []);
+          // Apply type assertion to ensure the status is of type AppointmentStatus
+          const typedAppointments = (data || []).map(apt => ({
+            ...apt,
+            status: apt.status as AppointmentStatus
+          })) as Appointment[];
+          
+          setAppointments(typedAppointments);
         }
         
         // Cargar servicios para mostrar nombres
@@ -192,7 +197,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusColor = (status: Appointment["status"]) => {
+  const getStatusColor = (status: AppointmentStatus) => {
     switch (status) {
       case "confirmed": return "bg-green-100 text-green-800";
       case "pending": return "bg-amber-100 text-amber-800";
@@ -202,7 +207,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusText = (status: Appointment["status"]) => {
+  const getStatusText = (status: AppointmentStatus) => {
     switch (status) {
       case "confirmed": return "Confirmado";
       case "pending": return "Pendiente";
