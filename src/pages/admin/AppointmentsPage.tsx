@@ -47,7 +47,11 @@ const AppointmentsPage = () => {
             variant: "destructive"
           });
         } else {
-          setAppointments(data || []);
+          // Fix the type issue by casting the data to the correct type
+          setAppointments(data?.map(apt => ({
+            ...apt,
+            status: apt.status as AppointmentStatus
+          })) || []);
         }
         
         // Cargar servicios para mostrar nombres
