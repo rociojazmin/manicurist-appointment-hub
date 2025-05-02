@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -94,7 +93,7 @@ const DashboardPage = () => {
         } else {
           const servicesMap: Record<string, Service> = {};
           servicesData?.forEach(service => {
-            servicesMap[service.id] = service;
+            servicesMap[service.id] = service as Service;
           });
           setServices(servicesMap);
         }
@@ -253,7 +252,7 @@ const DashboardPage = () => {
             >
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              <path d="M22 21v-2a4 4 0 0 1 0 7.75" />
             </svg>
           </CardHeader>
           <CardContent>

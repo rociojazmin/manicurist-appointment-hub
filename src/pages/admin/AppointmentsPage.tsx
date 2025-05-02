@@ -68,7 +68,7 @@ const AppointmentsPage = () => {
         } else {
           const servicesMap: Record<string, Service> = {};
           servicesData?.forEach(service => {
-            servicesMap[service.id] = service;
+            servicesMap[service.id] = service as Service;
           });
           setServices(servicesMap);
         }
