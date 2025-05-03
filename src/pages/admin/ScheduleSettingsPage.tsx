@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -161,9 +162,18 @@ const ScheduleSettingsPage = () => {
               enabled: true,
               startTime: workingHour.start_time,
               endTime: workingHour.end_time,
-              breakStartTime: "", // La tabla actual no almacena descansos
-              breakEndTime: "", // La tabla actual no almacena descansos
+              breakStartTime: newSchedule[dayKey].breakStartTime, // mantener los valores existentes para el descanso
+              breakEndTime: newSchedule[dayKey].breakEndTime, // mantener los valores existentes para el descanso
             };
+          }
+        });
+
+        // Establecer los días sin registros como deshabilitados
+        Object.keys(NUMBER_TO_DAY_MAPPING).forEach(dayNumber => {
+          const dayKey = NUMBER_TO_DAY_MAPPING[parseInt(dayNumber)];
+          const found = data.some((wh: WorkingHours) => wh.day_of_week === parseInt(dayNumber));
+          if (!found && dayKey) {
+            newSchedule[dayKey].enabled = false;
           }
         });
 
@@ -197,13 +207,7 @@ const ScheduleSettingsPage = () => {
 
       if (error) throw error;
 
-      // Convertir las fechas de string a objetos Date
-      const exceptionsWithDates = (data || []).map((exception: Exception) => ({
-        ...exception,
-        date: new Date(exception.exception_date),
-      }));
-
-      setDisabledDays(exceptionsWithDates);
+      setDisabledDays(data || []);
     } catch (error: unknown) {
       console.error("Error fetching exceptions:", error);
 
@@ -274,13 +278,7 @@ const ScheduleSettingsPage = () => {
 
       if (error) throw error;
 
-      // Agregamos la nueva excepción al estado local con la fecha como objeto Date
-      const exceptionWithDate = {
-        ...data,
-        date: selectedDate,
-      };
-
-      setDisabledDays([...disabledDays, exceptionWithDate]);
+      setDisabledDays([...disabledDays, data]);
       setSelectedDate(undefined);
       setDisabledReason("");
       setIsExceptionDialogOpen(false);
@@ -640,13 +638,23 @@ const ScheduleSettingsPage = () => {
                 {disabledDays.length > 0 ? (
                   <div className="space-y-4">
                     {disabledDays.map((day) => (
-                      <p className="font-medium">
-                        {format(
-                          parseISO(day.exception_date), // <- ahora parseISO
-                          "d 'de' MMMM 'de' yyyy",
-                          { locale: es }
-                        )}
-                      </p>
+                      <div key={day.id} className="flex justify-between items-center">
+                        <p className="font-medium">
+                          {format(
+                            parseISO(day.exception_date),
+                            "d 'de' MMMM 'de' yyyy",
+                            { locale: es }
+                          )}
+                        </p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveException(day.id)}
+                          className="text-destructive hover:text-destructive/90"
+                        >
+                          Eliminar
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 ) : (
