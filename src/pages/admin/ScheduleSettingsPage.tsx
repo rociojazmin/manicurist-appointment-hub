@@ -397,8 +397,8 @@ const ScheduleSettingsPage = () => {
 
   const isDateDisabled = (date: Date) => {
     return disabledDays.some((disabled) => {
-      // Comparar fecha independientemente de la hora
-      const disabledDate = disabled.date || new Date(disabled.exception_date);
+      // Convertimos exception.exception_date a Date aquí
+      const disabledDate = new Date(disabled.exception_date);
       return (
         date.getDate() === disabledDate.getDate() &&
         date.getMonth() === disabledDate.getMonth() &&
