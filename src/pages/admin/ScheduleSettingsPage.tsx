@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkingHours, Exception } from "@/types/database";
 import { Loader2 } from "lucide-react";
+import { parseISO } from "date-fns";
 
 // Tipo para horarios por día
 type DaySchedule = {
@@ -397,8 +398,8 @@ const ScheduleSettingsPage = () => {
 
   const isDateDisabled = (date: Date) => {
     return disabledDays.some((disabled) => {
-      // Convertimos exception.exception_date a Date aquí
-      const disabledDate = new Date(disabled.exception_date);
+      const disabledDate = parseISO(disabled.exception_date);
+
       return (
         date.getDate() === disabledDate.getDate() &&
         date.getMonth() === disabledDate.getMonth() &&
@@ -639,27 +640,13 @@ const ScheduleSettingsPage = () => {
                 {disabledDays.length > 0 ? (
                   <div className="space-y-4">
                     {disabledDays.map((day) => (
-                      <div
-                        key={day.id}
-                        className="flex justify-between items-center p-3 border rounded-md"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {format(
-                              new Date(day.exception_date),
-                              "d 'de' MMMM 'de' yyyy",
-                              { locale: es }
-                            )}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveException(day.id)}
-                        >
-                          Quitar
-                        </Button>
-                      </div>
+                      <p className="font-medium">
+                        {format(
+                          parseISO(day.exception_date), // <- ahora parseISO
+                          "d 'de' MMMM 'de' yyyy",
+                          { locale: es }
+                        )}
+                      </p>
                     ))}
                   </div>
                 ) : (
