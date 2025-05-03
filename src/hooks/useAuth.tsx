@@ -1,9 +1,18 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { Manicurist } from "@/types/database";
 import { User } from "@supabase/supabase-js";
+
+// Función para generar un username basado en el nombre
+const generateUsername = (name: string): string => {
+  // Convertir a minúsculas y eliminar espacios y caracteres especiales
+  return name.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remover acentos
+    .replace(/[^a-z0-9]/g, "");
+};
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
@@ -23,20 +32,40 @@ export function useAuth() {
       // No profile exists → create it
       if (selectError && selectError.code === "PGRST116") {
         const name = user.user_metadata?.name || "";
+        const username = generateUsername(name);
+        
         await supabase.from("manicurists").insert({
           id: user.id,
           name,
           phone: null,
+          username,
         });
+        
         setProfile({
           id: user.id,
           name,
           phone: null,
+          username,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
       } else if (profileData) {
-        setProfile(profileData);
+        // Si no tiene username, generarlo y actualizar
+        if (!profileData.username) {
+          const username = generateUsername(profileData.name);
+          
+          await supabase
+            .from("manicurists")
+            .update({ username })
+            .eq("id", user.id);
+            
+          setProfile({
+            ...profileData,
+            username
+          });
+        } else {
+          setProfile(profileData);
+        }
       } else {
         console.error("Error syncing profile:", selectError);
         setProfile(null);

@@ -13,6 +13,7 @@ import ServiceSelectionPage from "./pages/client/ServiceSelectionPage";
 import CalendarPage from "./pages/client/CalendarPage";
 import ClientFormPage from "./pages/client/ClientFormPage";
 import ConfirmationPage from "./pages/client/ConfirmationPage";
+import ManicuristProfilePage from "./pages/client/ManicuristProfilePage";
 
 // Páginas de administración (manicurista)
 import LoginPage from "./pages/admin/LoginPage";
@@ -43,6 +44,9 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/client-info" element={<ClientFormPage />} />
               <Route path="/confirmation" element={<ConfirmationPage />} />
+              
+              {/* Ruta personalizada para perfiles de manicuristas */}
+              <Route path="/:username" element={<ManicuristProfilePage />} />
 
               {/* Ruta de login */}
               <Route path="/admin/login" element={<LoginPage />} />
