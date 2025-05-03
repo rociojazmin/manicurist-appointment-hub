@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,10 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { WorkingHours, Exception } from "@/types/database";
+import { Loader2 } from "lucide-react";
 
 // Tipo para horarios por día
 type DaySchedule = {
@@ -19,12 +23,6 @@ type DaySchedule = {
   endTime: string;
   breakStartTime: string;
   breakEndTime: string;
-};
-
-// Tipo para días inhabilitados
-type DisabledDay = {
-  date: Date;
-  reason: string;
 };
 
 const INITIAL_SCHEDULE: Record<string, DaySchedule> = {
@@ -47,16 +45,112 @@ const DAYS_MAPPING: Record<string, string> = {
   sunday: "Domingo"
 };
 
+const DAY_NUMBER_MAPPING: Record<string, number> = {
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sunday: 0
+};
+
+const NUMBER_TO_DAY_MAPPING: Record<number, string> = {
+  1: "monday",
+  2: "tuesday",
+  3: "wednesday",
+  4: "thursday",
+  5: "friday",
+  6: "saturday",
+  0: "sunday"
+};
+
 const ScheduleSettingsPage = () => {
   const [schedule, setSchedule] = useState<Record<string, DaySchedule>>(INITIAL_SCHEDULE);
-  const [disabledDays, setDisabledDays] = useState<DisabledDay[]>([
-    { date: new Date(2025, 4, 1), reason: "Día Feriado" },
-    { date: new Date(2025, 4, 10), reason: "Capacitación" }
-  ]);
+  const [disabledDays, setDisabledDays] = useState<Exception[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [disabledReason, setDisabledReason] = useState("");
   const [isExceptionDialogOpen, setIsExceptionDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchWorkingHours();
+      fetchExceptions();
+    }
+  }, [user]);
+
+  const fetchWorkingHours = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("working_hours")
+        .select("*")
+        .eq("manicurist_id", user.id);
+        
+      if (error) throw error;
+      
+      // Convertir los datos de la base de datos a nuestro formato de horario
+      if (data && data.length > 0) {
+        const newSchedule = { ...INITIAL_SCHEDULE };
+        
+        data.forEach((workingHour: WorkingHours) => {
+          const dayKey = NUMBER_TO_DAY_MAPPING[workingHour.day_of_week];
+          if (dayKey) {
+            newSchedule[dayKey] = {
+              enabled: true,
+              startTime: workingHour.start_time,
+              endTime: workingHour.end_time,
+              breakStartTime: "", // La tabla actual no almacena descansos
+              breakEndTime: ""    // La tabla actual no almacena descansos
+            };
+          }
+        });
+        
+        setSchedule(newSchedule);
+      }
+    } catch (error: any) {
+      console.error("Error fetching working hours:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar tus horarios de trabajo. " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchExceptions = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("exceptions")
+        .select("*")
+        .eq("manicurist_id", user.id);
+        
+      if (error) throw error;
+      
+      // Convertir las fechas de string a objetos Date
+      const exceptionsWithDates = (data || []).map((exception: Exception) => ({
+        ...exception,
+        date: new Date(exception.exception_date)
+      }));
+      
+      setDisabledDays(exceptionsWithDates);
+    } catch (error: any) {
+      console.error("Error fetching exceptions:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar tus excepciones. " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDayToggle = (day: string) => {
     setSchedule({
@@ -78,7 +172,7 @@ const ScheduleSettingsPage = () => {
     });
   };
 
-  const handleAddException = () => {
+  const handleAddException = async () => {
     if (!selectedDate || !disabledReason) {
       toast({
         title: "Error",
@@ -88,47 +182,157 @@ const ScheduleSettingsPage = () => {
       return;
     }
 
-    const newDisabledDay: DisabledDay = {
-      date: selectedDate,
-      reason: disabledReason
-    };
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar al usuario",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setDisabledDays([...disabledDays, newDisabledDay]);
-    setSelectedDate(undefined);
-    setDisabledReason("");
-    setIsExceptionDialogOpen(false);
+    try {
+      // Formatear fecha para la base de datos (ISO string sin hora)
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      
+      const newException = {
+        manicurist_id: user.id,
+        exception_date: formattedDate
+      };
+      
+      const { data, error } = await supabase
+        .from("exceptions")
+        .insert(newException)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Agregamos la nueva excepción al estado local con la fecha como objeto Date
+      const exceptionWithDate = {
+        ...data,
+        date: selectedDate
+      };
+      
+      setDisabledDays([...disabledDays, exceptionWithDate]);
+      setSelectedDate(undefined);
+      setDisabledReason("");
+      setIsExceptionDialogOpen(false);
 
-    toast({
-      title: "Excepción agregada",
-      description: `Se ha marcado el día ${format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })} como no disponible`
-    });
+      toast({
+        title: "Excepción agregada",
+        description: `Se ha marcado el día ${format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })} como no disponible`
+      });
+    } catch (error: any) {
+      console.error("Error adding exception:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la excepción. " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleRemoveException = (index: number) => {
-    const newDisabledDays = [...disabledDays];
-    newDisabledDays.splice(index, 1);
-    setDisabledDays(newDisabledDays);
+  const handleRemoveException = async (id: string) => {
+    if (!user?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from("exceptions")
+        .delete()
+        .eq("id", id)
+        .eq("manicurist_id", user.id);
+        
+      if (error) throw error;
+      
+      const updatedExceptions = disabledDays.filter(day => day.id !== id);
+      setDisabledDays(updatedExceptions);
 
-    toast({
-      title: "Excepción eliminada",
-      description: "Se ha eliminado la excepción correctamente"
-    });
+      toast({
+        title: "Excepción eliminada",
+        description: "Se ha eliminado la excepción correctamente"
+      });
+    } catch (error: any) {
+      console.error("Error removing exception:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la excepción. " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSaveSchedule = () => {
-    toast({
-      title: "Configuración guardada",
-      description: "Tu horario de atención ha sido actualizado correctamente"
-    });
+  const handleSaveSchedule = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar al usuario",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Primero eliminar todos los horarios existentes
+      const { error: deleteError } = await supabase
+        .from("working_hours")
+        .delete()
+        .eq("manicurist_id", user.id);
+        
+      if (deleteError) throw deleteError;
+      
+      // Crear un array para almacenar los nuevos horarios
+      const workingHoursToInsert = Object.entries(schedule)
+        .filter(([_, dayData]) => dayData.enabled)
+        .map(([day, dayData]) => ({
+          manicurist_id: user.id,
+          day_of_week: DAY_NUMBER_MAPPING[day],
+          start_time: dayData.startTime,
+          end_time: dayData.endTime
+        }));
+      
+      // Insertar los nuevos horarios
+      if (workingHoursToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("working_hours")
+          .insert(workingHoursToInsert);
+          
+        if (insertError) throw insertError;
+      }
+      
+      toast({
+        title: "Configuración guardada",
+        description: "Tu horario de atención ha sido actualizado correctamente"
+      });
+    } catch (error: any) {
+      console.error("Error saving schedule:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la configuración. " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const isDateDisabled = (date: Date) => {
     return disabledDays.some(
-      disabled => date.getDate() === disabled.date.getDate() &&
-                 date.getMonth() === disabled.date.getMonth() &&
-                 date.getFullYear() === disabled.date.getFullYear()
+      disabled => {
+        // Comparar fecha independientemente de la hora
+        const disabledDate = disabled.date || new Date(disabled.exception_date);
+        return date.getDate() === disabledDate.getDate() &&
+               date.getMonth() === disabledDate.getMonth() &&
+               date.getFullYear() === disabledDate.getFullYear();
+      }
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -287,18 +491,17 @@ const ScheduleSettingsPage = () => {
 
                 {disabledDays.length > 0 ? (
                   <div className="space-y-4">
-                    {disabledDays.map((day, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 border rounded-md">
+                    {disabledDays.map((day) => (
+                      <div key={day.id} className="flex justify-between items-center p-3 border rounded-md">
                         <div>
                           <p className="font-medium">
-                            {format(day.date, "d 'de' MMMM 'de' yyyy", { locale: es })}
+                            {format(new Date(day.exception_date), "d 'de' MMMM 'de' yyyy", { locale: es })}
                           </p>
-                          <p className="text-sm text-muted-foreground">{day.reason}</p>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveException(index)}
+                          onClick={() => handleRemoveException(day.id)}
                         >
                           Quitar
                         </Button>
