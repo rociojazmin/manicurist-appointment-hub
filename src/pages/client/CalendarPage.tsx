@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, WorkingHours, Service } from "@/types/database";
+import { Appointment, WorkingHours, Service, Exception } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 import {
   format,
@@ -35,28 +36,6 @@ const DEFAULT_TIMES = [
   "17:00",
 ];
 
-// Días no disponibles (ej: domingos y algunos sábados)
-const isDateUnavailable = async (date: Date, manicuristId: string | null) => {
-  const day = date.getDay();
-
-  // Verificar si existe una excepción para esta fecha
-  if (manicuristId) {
-    const formattedDate = format(date, "yyyy-MM-dd");
-    const { data } = await supabase
-      .from("exceptions")
-      .select("*")
-      .eq("manicurist_id", manicuristId)
-      .eq("exception_date", formattedDate);
-
-    if (data && data.length > 0) {
-      return true; // Esta fecha es una excepción, no disponible
-    }
-  }
-
-  // Por defecto, domingos no disponibles
-  return day === 0;
-};
-
 const CalendarPage = () => {
   const {
     selectedService,
@@ -69,6 +48,7 @@ const CalendarPage = () => {
   const [workingHours, setWorkingHours] = useState<WorkingHours[]>([]);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [isLoadingDates, setIsLoadingDates] = useState(true);
+  const [exceptions, setExceptions] = useState<Exception[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile } = useAuthContext();
@@ -102,6 +82,7 @@ const CalendarPage = () => {
         if (hoursError) {
           console.error("Error fetching working hours:", hoursError);
         } else {
+          console.log("Horarios de trabajo cargados:", hoursData);
           setWorkingHours(hoursData || []);
         }
 
@@ -114,6 +95,9 @@ const CalendarPage = () => {
         if (exceptionsError) {
           console.error("Error fetching exceptions:", exceptionsError);
         } else {
+          console.log("Excepciones cargadas:", exceptionsData);
+          setExceptions(exceptionsData || []);
+          
           const exceptionDates = (exceptionsData || []).map((ex) =>
             parseISO(ex.exception_date)
           );
@@ -140,6 +124,19 @@ const CalendarPage = () => {
       try {
         // Obtener el día de la semana (0 = domingo, 1 = lunes, ..., 6 = sábado)
         const dayOfWeek = selectedDate.getDay();
+        
+        console.log("Día de la semana seleccionado:", dayOfWeek);
+        console.log("Horarios de trabajo disponibles:", workingHours);
+
+        // Verificar si el día seleccionado es una excepción
+        const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        const isException = exceptions.some(ex => ex.exception_date === formattedDate);
+        
+        if (isException) {
+          console.log("El día seleccionado es una excepción, no hay horarios disponibles");
+          setAvailableTimes([]);
+          return;
+        }
 
         // Buscar si hay un horario configurado para este día
         const dayConfig = workingHours.find(
@@ -149,6 +146,7 @@ const CalendarPage = () => {
         let possibleTimes: string[] = [];
 
         if (dayConfig) {
+          console.log("Configuración encontrada para este día:", dayConfig);
           // Si hay configuración para este día, generar los horarios entre start_time y end_time
           const startParts = dayConfig.start_time.split(":");
           const endParts = dayConfig.end_time.split(":");
@@ -175,30 +173,38 @@ const CalendarPage = () => {
             }
           }
         } else {
-          // Si no hay configuración, usar horarios predeterminados
-          possibleTimes = [...DEFAULT_TIMES];
+          console.log("No hay configuración para este día, usando horarios predeterminados si corresponde");
+          // Si no hay configuración y no es domingo, usar horarios predeterminados
+          if (dayOfWeek !== 0) {
+            possibleTimes = [...DEFAULT_TIMES];
+          } else {
+            // Si es domingo y no hay configuración específica, no hay horarios disponibles
+            possibleTimes = [];
+          }
         }
 
         // Verificar citas existentes para ese día para eliminar horarios ya ocupados
-        const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        if (possibleTimes.length > 0) {
+          const { data: appointments, error } = await supabase
+            .from("appointments")
+            .select("*")
+            .eq("appointment_date", formattedDate)
+            .eq("manicurist_id", selectedService.manicurist_id)
+            .in("status", ["pending", "confirmed"]);
 
-        const { data: appointments, error } = await supabase
-          .from("appointments")
-          .select("*")
-          .eq("appointment_date", formattedDate)
-          .eq("manicurist_id", selectedService.manicurist_id)
-          .in("status", ["pending", "confirmed"]);
-
-        if (error) {
-          console.error("Error fetching appointments:", error);
-        } else if (appointments && appointments.length > 0) {
-          // Eliminar horarios ya reservados
-          const bookedTimes = appointments.map((apt) => apt.appointment_time);
-          possibleTimes = possibleTimes.filter(
-            (time) => !bookedTimes.includes(time)
-          );
+          if (error) {
+            console.error("Error fetching appointments:", error);
+          } else if (appointments && appointments.length > 0) {
+            console.log("Citas existentes para este día:", appointments);
+            // Eliminar horarios ya reservados
+            const bookedTimes = appointments.map((apt) => apt.appointment_time);
+            possibleTimes = possibleTimes.filter(
+              (time) => !bookedTimes.includes(time)
+            );
+          }
         }
 
+        console.log("Horarios disponibles finales:", possibleTimes);
         setAvailableTimes(possibleTimes);
       } catch (error) {
         console.error("Error updating available times:", error);
@@ -207,7 +213,7 @@ const CalendarPage = () => {
     };
 
     updateAvailableTimes();
-  }, [selectedDate, selectedService, workingHours]);
+  }, [selectedDate, selectedService, workingHours, exceptions]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
@@ -226,7 +232,8 @@ const CalendarPage = () => {
     }
   };
 
-  const isDateDisabled = async (date: Date) => {
+  // Función para verificar si una fecha debe estar deshabilitada
+  const isDateDisabled = (date: Date) => {
     // No permitir fechas pasadas
     if (isBefore(date, startOfDay(new Date()))) {
       return true;
@@ -238,8 +245,29 @@ const CalendarPage = () => {
     }
 
     // Verificar si es una fecha de excepción
-    if (selectedService) {
-      return await isDateUnavailable(date, selectedService.manicurist_id);
+    const isException = unavailableDates.some(
+      (d) =>
+        d.getDate() === date.getDate() &&
+        d.getMonth() === date.getMonth() &&
+        d.getFullYear() === date.getFullYear()
+    );
+    
+    if (isException) {
+      return true;
+    }
+
+    // Verificar si hay horarios de trabajo configurados para este día
+    const dayOfWeek = date.getDay();
+    const dayHasWorkingHours = workingHours.some(wh => wh.day_of_week === dayOfWeek);
+    
+    // Si no hay configuración para este día y es domingo, deshabilitar
+    if (!dayHasWorkingHours && dayOfWeek === 0) {
+      return true;
+    }
+    
+    // Si hay configuración explícita, verificar si está habilitado
+    if (workingHours.length > 0 && !dayHasWorkingHours) {
+      return true; // Día no configurado como laboral
     }
 
     return false;
@@ -272,21 +300,7 @@ const CalendarPage = () => {
                   mode="single"
                   selected={selectedDate || undefined}
                   onSelect={handleDateSelect}
-                  disabled={(date) => {
-                    // Verificación básica para la UI
-                    const day = date.getDay();
-                    const isPastDate = isBefore(date, startOfDay(new Date()));
-                    const isTooFar = isBefore(addDays(new Date(), 30), date);
-                    const isException = unavailableDates.some(
-                      (d) =>
-                        d.getDate() === date.getDate() &&
-                        d.getMonth() === date.getMonth() &&
-                        d.getFullYear() === date.getFullYear()
-                    );
-
-                    // Por defecto, domingo no disponible
-                    return isPastDate || isTooFar || day === 0 || isException;
-                  }}
+                  disabled={isDateDisabled}
                   className="rounded-md border p-3 pointer-events-auto"
                   locale={es}
                 />
