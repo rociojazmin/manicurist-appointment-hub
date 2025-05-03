@@ -1,7 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -9,7 +14,15 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,13 +39,55 @@ type DaySchedule = {
 };
 
 const INITIAL_SCHEDULE: Record<string, DaySchedule> = {
-  monday: { enabled: true, startTime: "09:00", endTime: "18:00", breakStartTime: "13:00", breakEndTime: "14:00" },
-  tuesday: { enabled: true, startTime: "09:00", endTime: "18:00", breakStartTime: "13:00", breakEndTime: "14:00" },
-  wednesday: { enabled: true, startTime: "09:00", endTime: "18:00", breakStartTime: "13:00", breakEndTime: "14:00" },
-  thursday: { enabled: true, startTime: "09:00", endTime: "18:00", breakStartTime: "13:00", breakEndTime: "14:00" },
-  friday: { enabled: true, startTime: "09:00", endTime: "18:00", breakStartTime: "13:00", breakEndTime: "14:00" },
-  saturday: { enabled: true, startTime: "10:00", endTime: "15:00", breakStartTime: "", breakEndTime: "" },
-  sunday: { enabled: false, startTime: "", endTime: "", breakStartTime: "", breakEndTime: "" }
+  monday: {
+    enabled: true,
+    startTime: "09:00",
+    endTime: "18:00",
+    breakStartTime: "13:00",
+    breakEndTime: "14:00",
+  },
+  tuesday: {
+    enabled: true,
+    startTime: "09:00",
+    endTime: "18:00",
+    breakStartTime: "13:00",
+    breakEndTime: "14:00",
+  },
+  wednesday: {
+    enabled: true,
+    startTime: "09:00",
+    endTime: "18:00",
+    breakStartTime: "13:00",
+    breakEndTime: "14:00",
+  },
+  thursday: {
+    enabled: true,
+    startTime: "09:00",
+    endTime: "18:00",
+    breakStartTime: "13:00",
+    breakEndTime: "14:00",
+  },
+  friday: {
+    enabled: true,
+    startTime: "09:00",
+    endTime: "18:00",
+    breakStartTime: "13:00",
+    breakEndTime: "14:00",
+  },
+  saturday: {
+    enabled: true,
+    startTime: "10:00",
+    endTime: "15:00",
+    breakStartTime: "",
+    breakEndTime: "",
+  },
+  sunday: {
+    enabled: false,
+    startTime: "",
+    endTime: "",
+    breakStartTime: "",
+    breakEndTime: "",
+  },
 };
 
 const DAYS_MAPPING: Record<string, string> = {
@@ -42,7 +97,7 @@ const DAYS_MAPPING: Record<string, string> = {
   thursday: "Jueves",
   friday: "Viernes",
   saturday: "Sábado",
-  sunday: "Domingo"
+  sunday: "Domingo",
 };
 
 const DAY_NUMBER_MAPPING: Record<string, number> = {
@@ -52,7 +107,7 @@ const DAY_NUMBER_MAPPING: Record<string, number> = {
   thursday: 4,
   friday: 5,
   saturday: 6,
-  sunday: 0
+  sunday: 0,
 };
 
 const NUMBER_TO_DAY_MAPPING: Record<number, string> = {
@@ -62,11 +117,12 @@ const NUMBER_TO_DAY_MAPPING: Record<number, string> = {
   4: "thursday",
   5: "friday",
   6: "saturday",
-  0: "sunday"
+  0: "sunday",
 };
 
 const ScheduleSettingsPage = () => {
-  const [schedule, setSchedule] = useState<Record<string, DaySchedule>>(INITIAL_SCHEDULE);
+  const [schedule, setSchedule] =
+    useState<Record<string, DaySchedule>>(INITIAL_SCHEDULE);
   const [disabledDays, setDisabledDays] = useState<Exception[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [disabledReason, setDisabledReason] = useState("");
@@ -84,19 +140,19 @@ const ScheduleSettingsPage = () => {
 
   const fetchWorkingHours = async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("working_hours")
         .select("*")
         .eq("manicurist_id", user.id);
-        
+
       if (error) throw error;
-      
+
       // Convertir los datos de la base de datos a nuestro formato de horario
       if (data && data.length > 0) {
         const newSchedule = { ...INITIAL_SCHEDULE };
-        
+
         data.forEach((workingHour: WorkingHours) => {
           const dayKey = NUMBER_TO_DAY_MAPPING[workingHour.day_of_week];
           if (dayKey) {
@@ -105,18 +161,23 @@ const ScheduleSettingsPage = () => {
               startTime: workingHour.start_time,
               endTime: workingHour.end_time,
               breakStartTime: "", // La tabla actual no almacena descansos
-              breakEndTime: ""    // La tabla actual no almacena descansos
+              breakEndTime: "", // La tabla actual no almacena descansos
             };
           }
         });
-        
+
         setSchedule(newSchedule);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching working hours:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+
       toast({
         title: "Error",
-        description: "No se pudieron cargar tus horarios de trabajo. " + error.message,
+        description:
+          "No se pudieron cargar tus horarios de trabajo. " + errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -126,27 +187,31 @@ const ScheduleSettingsPage = () => {
 
   const fetchExceptions = async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("exceptions")
         .select("*")
         .eq("manicurist_id", user.id);
-        
+
       if (error) throw error;
-      
+
       // Convertir las fechas de string a objetos Date
       const exceptionsWithDates = (data || []).map((exception: Exception) => ({
         ...exception,
-        date: new Date(exception.exception_date)
+        date: new Date(exception.exception_date),
       }));
-      
+
       setDisabledDays(exceptionsWithDates);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching exceptions:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+
       toast({
         title: "Error",
-        description: "No se pudieron cargar tus excepciones. " + error.message,
+        description: "No se pudieron cargar tus excepciones.  " + errorMessage,
         variant: "destructive",
       });
     }
@@ -157,8 +222,8 @@ const ScheduleSettingsPage = () => {
       ...schedule,
       [day]: {
         ...schedule[day],
-        enabled: !schedule[day].enabled
-      }
+        enabled: !schedule[day].enabled,
+      },
     });
   };
 
@@ -167,8 +232,8 @@ const ScheduleSettingsPage = () => {
       ...schedule,
       [day]: {
         ...schedule[day],
-        [field]: value
-      }
+        [field]: value,
+      },
     });
   };
 
@@ -193,27 +258,27 @@ const ScheduleSettingsPage = () => {
 
     try {
       // Formatear fecha para la base de datos (ISO string sin hora)
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      
+      const formattedDate = selectedDate.toISOString().split("T")[0];
+
       const newException = {
         manicurist_id: user.id,
-        exception_date: formattedDate
+        exception_date: formattedDate,
       };
-      
+
       const { data, error } = await supabase
         .from("exceptions")
         .insert(newException)
         .select()
         .single();
-        
+
       if (error) throw error;
-      
+
       // Agregamos la nueva excepción al estado local con la fecha como objeto Date
       const exceptionWithDate = {
         ...data,
-        date: selectedDate
+        date: selectedDate,
       };
-      
+
       setDisabledDays([...disabledDays, exceptionWithDate]);
       setSelectedDate(undefined);
       setDisabledReason("");
@@ -221,13 +286,21 @@ const ScheduleSettingsPage = () => {
 
       toast({
         title: "Excepción agregada",
-        description: `Se ha marcado el día ${format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })} como no disponible`
+        description: `Se ha marcado el día ${format(
+          selectedDate,
+          "d 'de' MMMM 'de' yyyy",
+          { locale: es }
+        )} como no disponible`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding exception:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+
       toast({
         title: "Error",
-        description: "No se pudo guardar la excepción. " + error.message,
+        description: "No se pudo guardar la excepción.  " + errorMessage,
         variant: "destructive",
       });
     }
@@ -235,28 +308,32 @@ const ScheduleSettingsPage = () => {
 
   const handleRemoveException = async (id: string) => {
     if (!user?.id) return;
-    
+
     try {
       const { error } = await supabase
         .from("exceptions")
         .delete()
         .eq("id", id)
         .eq("manicurist_id", user.id);
-        
+
       if (error) throw error;
-      
-      const updatedExceptions = disabledDays.filter(day => day.id !== id);
+
+      const updatedExceptions = disabledDays.filter((day) => day.id !== id);
       setDisabledDays(updatedExceptions);
 
       toast({
         title: "Excepción eliminada",
-        description: "Se ha eliminado la excepción correctamente"
+        description: "Se ha eliminado la excepción correctamente",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error removing exception:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+
       toast({
         title: "Error",
-        description: "No se pudo eliminar la excepción. " + error.message,
+        description: "No se pudo eliminar la excepción. " + errorMessage,
         variant: "destructive",
       });
     }
@@ -271,16 +348,16 @@ const ScheduleSettingsPage = () => {
       });
       return;
     }
-    
+
     try {
       // Primero eliminar todos los horarios existentes
       const { error: deleteError } = await supabase
         .from("working_hours")
         .delete()
         .eq("manicurist_id", user.id);
-        
+
       if (deleteError) throw deleteError;
-      
+
       // Crear un array para almacenar los nuevos horarios
       const workingHoursToInsert = Object.entries(schedule)
         .filter(([_, dayData]) => dayData.enabled)
@@ -288,42 +365,46 @@ const ScheduleSettingsPage = () => {
           manicurist_id: user.id,
           day_of_week: DAY_NUMBER_MAPPING[day],
           start_time: dayData.startTime,
-          end_time: dayData.endTime
+          end_time: dayData.endTime,
         }));
-      
+
       // Insertar los nuevos horarios
       if (workingHoursToInsert.length > 0) {
         const { error: insertError } = await supabase
           .from("working_hours")
           .insert(workingHoursToInsert);
-          
+
         if (insertError) throw insertError;
       }
-      
+
       toast({
         title: "Configuración guardada",
-        description: "Tu horario de atención ha sido actualizado correctamente"
+        description: "Tu horario de atención ha sido actualizado correctamente",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving schedule:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+
       toast({
         title: "Error",
-        description: "No se pudo guardar la configuración. " + error.message,
+        description: "No se pudo guardar la configuración " + errorMessage,
         variant: "destructive",
       });
     }
   };
 
   const isDateDisabled = (date: Date) => {
-    return disabledDays.some(
-      disabled => {
-        // Comparar fecha independientemente de la hora
-        const disabledDate = disabled.date || new Date(disabled.exception_date);
-        return date.getDate() === disabledDate.getDate() &&
-               date.getMonth() === disabledDate.getMonth() &&
-               date.getFullYear() === disabledDate.getFullYear();
-      }
-    );
+    return disabledDays.some((disabled) => {
+      // Comparar fecha independientemente de la hora
+      const disabledDate = disabled.date || new Date(disabled.exception_date);
+      return (
+        date.getDate() === disabledDate.getDate() &&
+        date.getMonth() === disabledDate.getMonth() &&
+        date.getFullYear() === disabledDate.getFullYear()
+      );
+    });
   };
 
   if (loading) {
@@ -337,7 +418,9 @@ const ScheduleSettingsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Configuración de Horarios</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Configuración de Horarios
+        </h1>
         <p className="text-muted-foreground">
           Define tus horarios de atención y días no disponibles
         </p>
@@ -348,7 +431,7 @@ const ScheduleSettingsPage = () => {
           <TabsTrigger value="weekly">Horario Semanal</TabsTrigger>
           <TabsTrigger value="exceptions">Excepciones</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="weekly">
           <Card>
             <CardHeader>
@@ -360,66 +443,120 @@ const ScheduleSettingsPage = () => {
             <CardContent>
               <div className="space-y-6">
                 {Object.keys(schedule).map((day) => (
-                  <div key={day} className="border-b pb-4 last:border-b-0 last:pb-0">
+                  <div
+                    key={day}
+                    className="border-b pb-4 last:border-b-0 last:pb-0"
+                  >
                     <div className="flex items-center space-x-2 mb-4">
                       <Checkbox
                         id={`enable-${day}`}
                         checked={schedule[day].enabled}
                         onCheckedChange={() => handleDayToggle(day)}
                       />
-                      <Label htmlFor={`enable-${day}`} className="text-lg font-medium">
+                      <Label
+                        htmlFor={`enable-${day}`}
+                        className="text-lg font-medium"
+                      >
                         {DAYS_MAPPING[day]}
                       </Label>
                     </div>
-                    
+
                     {schedule[day].enabled && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div>
-                            <Label className="block mb-2">Horario de Apertura</Label>
+                            <Label className="block mb-2">
+                              Horario de Apertura
+                            </Label>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <Label htmlFor={`${day}-start`} className="text-sm">Desde</Label>
+                                <Label
+                                  htmlFor={`${day}-start`}
+                                  className="text-sm"
+                                >
+                                  Desde
+                                </Label>
                                 <Input
                                   id={`${day}-start`}
                                   type="time"
                                   value={schedule[day].startTime}
-                                  onChange={(e) => handleScheduleChange(day, "startTime", e.target.value)}
+                                  onChange={(e) =>
+                                    handleScheduleChange(
+                                      day,
+                                      "startTime",
+                                      e.target.value
+                                    )
+                                  }
                                 />
                               </div>
                               <div>
-                                <Label htmlFor={`${day}-end`} className="text-sm">Hasta</Label>
+                                <Label
+                                  htmlFor={`${day}-end`}
+                                  className="text-sm"
+                                >
+                                  Hasta
+                                </Label>
                                 <Input
                                   id={`${day}-end`}
                                   type="time"
                                   value={schedule[day].endTime}
-                                  onChange={(e) => handleScheduleChange(day, "endTime", e.target.value)}
+                                  onChange={(e) =>
+                                    handleScheduleChange(
+                                      day,
+                                      "endTime",
+                                      e.target.value
+                                    )
+                                  }
                                 />
                               </div>
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-4">
                           <div>
-                            <Label className="block mb-2">Descanso (opcional)</Label>
+                            <Label className="block mb-2">
+                              Descanso (opcional)
+                            </Label>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <Label htmlFor={`${day}-break-start`} className="text-sm">Desde</Label>
+                                <Label
+                                  htmlFor={`${day}-break-start`}
+                                  className="text-sm"
+                                >
+                                  Desde
+                                </Label>
                                 <Input
                                   id={`${day}-break-start`}
                                   type="time"
                                   value={schedule[day].breakStartTime}
-                                  onChange={(e) => handleScheduleChange(day, "breakStartTime", e.target.value)}
+                                  onChange={(e) =>
+                                    handleScheduleChange(
+                                      day,
+                                      "breakStartTime",
+                                      e.target.value
+                                    )
+                                  }
                                 />
                               </div>
                               <div>
-                                <Label htmlFor={`${day}-break-end`} className="text-sm">Hasta</Label>
+                                <Label
+                                  htmlFor={`${day}-break-end`}
+                                  className="text-sm"
+                                >
+                                  Hasta
+                                </Label>
                                 <Input
                                   id={`${day}-break-end`}
                                   type="time"
                                   value={schedule[day].breakEndTime}
-                                  onChange={(e) => handleScheduleChange(day, "breakEndTime", e.target.value)}
+                                  onChange={(e) =>
+                                    handleScheduleChange(
+                                      day,
+                                      "breakEndTime",
+                                      e.target.value
+                                    )
+                                  }
                                 />
                               </div>
                             </div>
@@ -429,7 +566,7 @@ const ScheduleSettingsPage = () => {
                     )}
                   </div>
                 ))}
-                
+
                 <div className="flex justify-end">
                   <Button onClick={handleSaveSchedule}>
                     Guardar Configuración
@@ -439,18 +576,22 @@ const ScheduleSettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="exceptions">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Días No Disponibles</CardTitle>
                 <CardDescription>
-                  Marca fechas específicas como no disponibles (vacaciones, feriados, etc.)
+                  Marca fechas específicas como no disponibles (vacaciones,
+                  feriados, etc.)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Dialog open={isExceptionDialogOpen} onOpenChange={setIsExceptionDialogOpen}>
+                <Dialog
+                  open={isExceptionDialogOpen}
+                  onOpenChange={setIsExceptionDialogOpen}
+                >
                   <DialogTrigger asChild>
                     <Button className="w-full mb-6">Agregar Excepción</Button>
                   </DialogTrigger>
@@ -458,7 +599,8 @@ const ScheduleSettingsPage = () => {
                     <DialogHeader>
                       <DialogTitle>Agregar Día No Disponible</DialogTitle>
                       <DialogDescription>
-                        Selecciona la fecha y proporciona un motivo para marcarla como no disponible
+                        Selecciona la fecha y proporciona un motivo para
+                        marcarla como no disponible
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -483,7 +625,12 @@ const ScheduleSettingsPage = () => {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsExceptionDialogOpen(false)}>Cancelar</Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsExceptionDialogOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
                       <Button onClick={handleAddException}>Guardar</Button>
                     </DialogFooter>
                   </DialogContent>
@@ -492,10 +639,17 @@ const ScheduleSettingsPage = () => {
                 {disabledDays.length > 0 ? (
                   <div className="space-y-4">
                     {disabledDays.map((day) => (
-                      <div key={day.id} className="flex justify-between items-center p-3 border rounded-md">
+                      <div
+                        key={day.id}
+                        className="flex justify-between items-center p-3 border rounded-md"
+                      >
                         <div>
                           <p className="font-medium">
-                            {format(new Date(day.exception_date), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                            {format(
+                              new Date(day.exception_date),
+                              "d 'de' MMMM 'de' yyyy",
+                              { locale: es }
+                            )}
                           </p>
                         </div>
                         <Button
@@ -515,7 +669,7 @@ const ScheduleSettingsPage = () => {
                 )}
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Vista Previa del Calendario</CardTitle>
