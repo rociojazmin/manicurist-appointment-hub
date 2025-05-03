@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
 import { format } from "date-fns";
@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import ClientLayout from "@/components/layouts/ClientLayout";
 
 const ClientFormPage = () => {
@@ -25,52 +23,12 @@ const ClientFormPage = () => {
     name: false,
     phone: false
   });
-  const [isChecking, setIsChecking] = useState(true);
 
   // Verificar si se han seleccionado servicio, fecha y hora
-  useEffect(() => {
-    if (!selectedService || !selectedDate || !selectedTime) {
-      navigate("/services");
-      return;
-    }
-    
-    // Verificar si el horario sigue disponible
-    const checkAvailability = async () => {
-      try {
-        setIsChecking(true);
-        
-        // Formato requerido para las fechas en la base de datos
-        const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        
-        // Verificar si ya existe una cita para ese día y hora
-        const { data, error } = await supabase
-          .from("appointments")
-          .select("*")
-          .eq("appointment_date", formattedDate)
-          .eq("appointment_time", selectedTime)
-          .eq("manicurist_id", selectedService.manicurist_id)
-          .in("status", ["pending", "confirmed"]);
-          
-        if (error) {
-          console.error("Error al verificar disponibilidad:", error);
-        } else if (data && data.length > 0) {
-          // El horario ya no está disponible
-          toast({
-            title: "Horario no disponible",
-            description: "Lo sentimos, este horario ya ha sido reservado. Por favor elige otro.",
-            variant: "destructive",
-          });
-          navigate("/calendar");
-        }
-      } catch (error) {
-        console.error("Error inesperado:", error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-    
-    checkAvailability();
-  }, [selectedService, selectedDate, selectedTime, navigate, toast]);
+  if (!selectedService || !selectedDate || !selectedTime) {
+    navigate("/services");
+    return null;
+  }
 
   const validateForm = () => {
     const newErrors = {
@@ -102,11 +60,6 @@ const ClientFormPage = () => {
     }
   };
 
-  // Si no hay servicio, fecha u hora seleccionada, redirigir
-  if (!selectedService || !selectedDate || !selectedTime) {
-    return null;
-  }
-
   return (
     <ClientLayout>
       <div className="container mx-auto px-4 py-8">
@@ -118,98 +71,90 @@ const ClientFormPage = () => {
             </p>
           </div>
 
-          {isChecking ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Detalles de la reserva</h2>
+            <div className="space-y-2 mb-6">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Servicio:</span>
+                <span className="font-medium">{selectedService.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fecha:</span>
+                <span className="font-medium">
+                  {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Hora:</span>
+                <span className="font-medium">{selectedTime}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Duración:</span>
+                <span className="font-medium">{selectedService.duration} minutos</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Precio:</span>
+                <span className="font-medium">${selectedService.price}</span>
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Detalles de la reserva</h2>
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Servicio:</span>
-                    <span className="font-medium">{selectedService.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Fecha:</span>
-                    <span className="font-medium">
-                      {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Hora:</span>
-                    <span className="font-medium">{selectedTime}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duración:</span>
-                    <span className="font-medium">{selectedService.duration} minutos</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Precio:</span>
-                    <span className="font-medium">${selectedService.price}</span>
-                  </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre completo <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={errors.name ? "border-destructive" : ""}
+                  />
+                  {errors.name && (
+                    <p className="text-destructive text-sm">Este campo es obligatorio</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Ingresa tu número de 10 dígitos"
+                    className={errors.phone ? "border-destructive" : ""}
+                  />
+                  {errors.phone && (
+                    <p className="text-destructive text-sm">Ingresa un número de teléfono válido de 10 dígitos</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notas adicionales (opcional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ej: Preferencias, alergias, etc."
+                  />
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <form onSubmit={handleSubmit}>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Nombre completo <span className="text-destructive">*</span></Label>
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className={errors.name ? "border-destructive" : ""}
-                      />
-                      {errors.name && (
-                        <p className="text-destructive text-sm">Este campo es obligatorio</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Teléfono <span className="text-destructive">*</span></Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="Ingresa tu número de 10 dígitos"
-                        className={errors.phone ? "border-destructive" : ""}
-                      />
-                      {errors.phone && (
-                        <p className="text-destructive text-sm">Ingresa un número de teléfono válido de 10 dígitos</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Notas adicionales (opcional)</Label>
-                      <Textarea
-                        id="notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Ej: Preferencias, alergias, etc."
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center mt-8">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate("/calendar")}
-                    >
-                      Volver
-                    </Button>
-                    <Button type="submit">
-                      Confirmar Reserva
-                    </Button>
-                  </div>
-                </form>
+              <div className="flex justify-between items-center mt-8">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/calendar")}
+                >
+                  Volver
+                </Button>
+                <Button type="submit">
+                  Confirmar Reserva
+                </Button>
               </div>
-            </>
-          )}
+            </form>
+          </div>
         </div>
       </div>
     </ClientLayout>
