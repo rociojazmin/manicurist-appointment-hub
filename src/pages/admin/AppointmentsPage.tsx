@@ -1,12 +1,24 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isToday, isFuture, isPast, isAfter, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,9 +34,14 @@ interface AppointmentWithService extends Appointment {
 }
 
 const AppointmentsPage = () => {
-  const [appointments, setAppointments] = useState<AppointmentWithService[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithService | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentWithService[]>(
+    []
+  );
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    new Date()
+  );
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<AppointmentWithService | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
@@ -40,36 +57,38 @@ const AppointmentsPage = () => {
       try {
         // Cargar todas las citas con información del servicio
         const { data, error } = await supabase
-          .from('appointments')
-          .select(`
+          .from("appointments")
+          .select(
+            `
             *,
             service:service_id(*)
-          `)
-          .eq('manicurist_id', profile.id)
-          .order('appointment_date', { ascending: false });
-          
+          `
+          )
+          .eq("manicurist_id", profile.id)
+          .order("appointment_date", { ascending: false });
+
         if (error) {
-          console.error('Error fetching appointments:', error);
+          console.error("Error fetching appointments:", error);
           toast({
             title: "Error",
             description: "No se pudieron cargar las citas",
-            variant: "destructive"
+            variant: "destructive",
           });
         } else {
           // Convertir los datos y asegurarse de que el tipo sea correcto
-          const formattedAppointments = (data || []).map(appointment => {
+          const formattedAppointments = (data || []).map((appointment) => {
             // Asegurarse de que el status sea del tipo correcto
             return {
               ...appointment,
               status: appointment.status as AppointmentStatus,
-              service: appointment.service as Service
+              service: appointment.service as unknown as Service,
             } as AppointmentWithService;
           });
-          
+
           setAppointments(formattedAppointments);
         }
       } catch (error) {
-        console.error('Error:', error);
+        console.error("Error:", error);
       } finally {
         setLoading(false);
       }
@@ -81,69 +100,77 @@ const AppointmentsPage = () => {
   }, [profile, toast]);
 
   // Filtrar citas por fecha y estado
-  const todayAppointments = appointments.filter(apt => 
-    format(new Date(apt.appointment_date), "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
+  const todayAppointments = appointments.filter(
+    (apt) =>
+      format(new Date(apt.appointment_date), "yyyy-MM-dd") ===
+      format(new Date(), "yyyy-MM-dd")
   );
-  
-  const upcomingAppointments = appointments.filter(apt => {
+
+  const upcomingAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.appointment_date);
     return isFuture(aptDate) && !isToday(aptDate);
   });
-  
-  const pastAppointments = appointments.filter(apt => {
+
+  const pastAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.appointment_date);
     return isPast(aptDate) && !isToday(aptDate);
   });
-  
-  const dateAppointments = selectedDate 
-    ? appointments.filter(apt => {
+
+  const dateAppointments = selectedDate
+    ? appointments.filter((apt) => {
         const aptDate = new Date(apt.appointment_date);
-        return aptDate.getDate() === selectedDate.getDate() &&
-               aptDate.getMonth() === selectedDate.getMonth() &&
-               aptDate.getFullYear() === selectedDate.getFullYear();
+        return (
+          aptDate.getDate() === selectedDate.getDate() &&
+          aptDate.getMonth() === selectedDate.getMonth() &&
+          aptDate.getFullYear() === selectedDate.getFullYear()
+        );
       })
     : [];
 
   const handleStatus = async (id: string, newStatus: Appointment["status"]) => {
     if (!profile) return;
-    
+
     try {
       const { error } = await supabase
-        .from('appointments')
+        .from("appointments")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', id);
-        
+        .eq("id", id);
+
       if (error) {
-        console.error('Error updating appointment status:', error);
+        console.error("Error updating appointment status:", error);
         toast({
           title: "Error",
           description: "No se pudo actualizar el estado de la cita",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
-      
+
       // Actualizar estado local
-      setAppointments(prev => 
-        prev.map(apt => apt.id === id ? { ...apt, status: newStatus } : apt)
+      setAppointments((prev) =>
+        prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
       );
-      
+
       // Si la cita seleccionada es la que se actualizó, actualizar también
       if (selectedAppointment?.id === id) {
         setSelectedAppointment({ ...selectedAppointment, status: newStatus });
       }
 
-      const appointment = appointments.find(apt => apt.id === id);
+      const appointment = appointments.find((apt) => apt.id === id);
       toast({
         title: "Estado actualizado",
         description: `La cita de ${appointment?.client_name} ha sido ${
-          newStatus === "confirmed" ? "confirmada" : 
-          newStatus === "cancelled" ? "cancelada" : 
-          newStatus === "completed" ? "completada" : "actualizada"
-        }`
+          newStatus === "confirmed"
+            ? "confirmada"
+            : newStatus === "cancelled"
+            ? "cancelada"
+            : newStatus === "completed"
+            ? "completada"
+            : "actualizada"
+        }`,
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
     }
   };
 
@@ -159,68 +186,86 @@ const AppointmentsPage = () => {
     try {
       // Actualizar notas en la base de datos
       const { error } = await supabase
-        .from('appointments')
-        .update({ 
+        .from("appointments")
+        .update({
           notes: notes,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', selectedAppointment.id);
-        
+        .eq("id", selectedAppointment.id);
+
       if (error) {
-        console.error('Error updating appointment notes:', error);
+        console.error("Error updating appointment notes:", error);
         toast({
           title: "Error",
           description: "No se pudieron actualizar las notas",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
-      
+
       // Actualizar estado local
-      setAppointments(prev => 
-        prev.map(apt => apt.id === selectedAppointment.id ? { ...apt, notes } : apt)
+      setAppointments((prev) =>
+        prev.map((apt) =>
+          apt.id === selectedAppointment.id ? { ...apt, notes } : apt
+        )
       );
       setIsDetailsOpen(false);
 
       toast({
         title: "Notas actualizadas",
-        description: "Las notas de la cita han sido actualizadas correctamente"
+        description: "Las notas de la cita han sido actualizadas correctamente",
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
     }
   };
 
   const getStatusColor = (status: Appointment["status"]) => {
     switch (status) {
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "pending": return "bg-amber-100 text-amber-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      case "completed": return "bg-blue-100 text-blue-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "confirmed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-amber-100 text-amber-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      case "completed":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusText = (status: Appointment["status"]) => {
     switch (status) {
-      case "confirmed": return "Confirmado";
-      case "pending": return "Pendiente";
-      case "cancelled": return "Cancelado";
-      case "completed": return "Completado";
-      default: return status;
+      case "confirmed":
+        return "Confirmado";
+      case "pending":
+        return "Pendiente";
+      case "cancelled":
+        return "Cancelado";
+      case "completed":
+        return "Completado";
+      default:
+        return status;
     }
   };
 
   const renderAppointmentCard = (appointment: AppointmentWithService) => (
-    <div key={appointment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+    <div
+      key={appointment.id}
+      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+    >
       <div className="flex justify-between items-start">
         <div>
           <h3 className="font-medium">{appointment.client_name}</h3>
           <p className="text-sm text-muted-foreground">
-            {appointment.service?.name || 'Servicio no encontrado'}
+            {appointment.service?.name || "Servicio no encontrado"}
           </p>
           <p className="text-sm text-muted-foreground">
-            {format(new Date(appointment.appointment_date), "d MMM yyyy", { locale: es })} - {appointment.appointment_time}
+            {format(new Date(appointment.appointment_date), "d MMM yyyy", {
+              locale: es,
+            })}{" "}
+            - {appointment.appointment_time}
           </p>
         </div>
         <Badge className={getStatusColor(appointment.status)}>
@@ -289,11 +334,17 @@ const AppointmentsPage = () => {
       <Tabs defaultValue="all">
         <TabsList className="mb-4">
           <TabsTrigger value="all">Por Fecha</TabsTrigger>
-          <TabsTrigger value="today">Hoy ({todayAppointments.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Próximos ({upcomingAppointments.length})</TabsTrigger>
-          <TabsTrigger value="past">Anteriores ({pastAppointments.length})</TabsTrigger>
+          <TabsTrigger value="today">
+            Hoy ({todayAppointments.length})
+          </TabsTrigger>
+          <TabsTrigger value="upcoming">
+            Próximos ({upcomingAppointments.length})
+          </TabsTrigger>
+          <TabsTrigger value="past">
+            Anteriores ({pastAppointments.length})
+          </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="all">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="md:col-span-1">
@@ -313,10 +364,16 @@ const AppointmentsPage = () => {
                 />
                 <div className="mt-4 space-y-2">
                   <p className="text-sm font-medium">
-                    {selectedDate ? format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", { locale: es }) : "Ninguna fecha seleccionada"}
+                    {selectedDate
+                      ? format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", {
+                          locale: es,
+                        })
+                      : "Ninguna fecha seleccionada"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {dateAppointments.length} {dateAppointments.length === 1 ? "turno" : "turnos"} para esta fecha
+                    {dateAppointments.length}{" "}
+                    {dateAppointments.length === 1 ? "turno" : "turnos"} para
+                    esta fecha
                   </p>
                 </div>
               </CardContent>
@@ -326,17 +383,20 @@ const AppointmentsPage = () => {
               <CardHeader>
                 <CardTitle>Turnos del Día</CardTitle>
                 <CardDescription>
-                  {selectedDate 
-                    ? `Turnos para el ${format(selectedDate, "d 'de' MMMM", { locale: es })}`
-                    : "Selecciona una fecha para ver los turnos"
-                  }
+                  {selectedDate
+                    ? `Turnos para el ${format(selectedDate, "d 'de' MMMM", {
+                        locale: es,
+                      })}`
+                    : "Selecciona una fecha para ver los turnos"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {dateAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {dateAppointments
-                      .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+                      .sort((a, b) =>
+                        a.appointment_time.localeCompare(b.appointment_time)
+                      )
                       .map(renderAppointmentCard)}
                   </div>
                 ) : (
@@ -348,20 +408,24 @@ const AppointmentsPage = () => {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="today">
           <Card>
             <CardHeader>
               <CardTitle>Turnos de Hoy</CardTitle>
               <CardDescription>
-                {format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })}
+                {format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", {
+                  locale: es,
+                })}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {todayAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {todayAppointments
-                    .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+                    .sort((a, b) =>
+                      a.appointment_time.localeCompare(b.appointment_time)
+                    )
                     .map(renderAppointmentCard)}
                 </div>
               ) : (
@@ -372,7 +436,7 @@ const AppointmentsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="upcoming">
           <Card>
             <CardHeader>
@@ -392,7 +456,9 @@ const AppointmentsPage = () => {
                       if (dateA.getTime() !== dateB.getTime()) {
                         return dateA.getTime() - dateB.getTime();
                       }
-                      return a.appointment_time.localeCompare(b.appointment_time);
+                      return a.appointment_time.localeCompare(
+                        b.appointment_time
+                      );
                     })
                     .map(renderAppointmentCard)}
                 </div>
@@ -404,14 +470,12 @@ const AppointmentsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="past">
           <Card>
             <CardHeader>
               <CardTitle>Turnos Anteriores</CardTitle>
-              <CardDescription>
-                Historial de turnos pasados
-              </CardDescription>
+              <CardDescription>Historial de turnos pasados</CardDescription>
             </CardHeader>
             <CardContent>
               {pastAppointments.length > 0 ? (
@@ -424,7 +488,9 @@ const AppointmentsPage = () => {
                       if (dateA.getTime() !== dateB.getTime()) {
                         return dateB.getTime() - dateA.getTime();
                       }
-                      return b.appointment_time.localeCompare(a.appointment_time);
+                      return b.appointment_time.localeCompare(
+                        a.appointment_time
+                      );
                     })
                     .map(renderAppointmentCard)}
                 </div>
@@ -450,45 +516,73 @@ const AppointmentsPage = () => {
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Cliente</Label>
-                  <p className="font-medium">{selectedAppointment.client_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Teléfono</Label>
-                  <p className="font-medium">{selectedAppointment.client_phone}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Servicio</Label>
+                  <Label className="text-sm text-muted-foreground">
+                    Cliente
+                  </Label>
                   <p className="font-medium">
-                    {selectedAppointment.service?.name || 'Servicio no encontrado'}
+                    {selectedAppointment.client_name}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Estado</Label>
-                  <Badge className={`mt-1 ${getStatusColor(selectedAppointment.status)}`}>
+                  <Label className="text-sm text-muted-foreground">
+                    Teléfono
+                  </Label>
+                  <p className="font-medium">
+                    {selectedAppointment.client_phone}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">
+                    Servicio
+                  </Label>
+                  <p className="font-medium">
+                    {selectedAppointment.service?.name ||
+                      "Servicio no encontrado"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">
+                    Estado
+                  </Label>
+                  <Badge
+                    className={`mt-1 ${getStatusColor(
+                      selectedAppointment.status
+                    )}`}
+                  >
                     {getStatusText(selectedAppointment.status)}
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Fecha</Label>
                   <p className="font-medium">
-                    {format(new Date(selectedAppointment.appointment_date), "d MMMM yyyy", { locale: es })}
+                    {format(
+                      new Date(selectedAppointment.appointment_date),
+                      "d MMMM yyyy",
+                      { locale: es }
+                    )}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Hora</Label>
-                  <p className="font-medium">{selectedAppointment.appointment_time}</p>
+                  <p className="font-medium">
+                    {selectedAppointment.appointment_time}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm text-muted-foreground">Notas</Label>
+                <Label
+                  htmlFor="notes"
+                  className="text-sm text-muted-foreground"
+                >
+                  Notas
+                </Label>
                 <Textarea
                   id="notes"
                   value={notes}
@@ -502,9 +596,7 @@ const AppointmentsPage = () => {
             <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleUpdateNotes}>
-              Guardar Cambios
-            </Button>
+            <Button onClick={handleUpdateNotes}>Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
