@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import ClientLayout from "@/components/layouts/ClientLayout";
+import { supabase } from "@/integrations/supabase/client";
 
 const ClientFormPage = () => {
   const { selectedService, selectedDate, selectedTime, setClientInfo } = useBooking();
@@ -19,6 +20,7 @@ const ClientFormPage = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({
     name: false,
     phone: false
@@ -40,17 +42,73 @@ const ClientFormPage = () => {
     return !Object.values(newErrors).some(error => error);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const checkAvailability = async () => {
+    if (!selectedService || !selectedDate || !selectedTime) {
+      return false;
+    }
+
+    try {
+      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+
+      // Verificar si ya existe una cita en ese horario
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('manicurist_id', selectedService.manicurist_id)
+        .eq('appointment_date', formattedDate)
+        .eq('appointment_time', selectedTime)
+        .neq('status', 'cancelled'); // No considerar citas canceladas
+      
+      if (error) {
+        console.error("Error al verificar disponibilidad:", error);
+        return false;
+      }
+
+      // Si hay datos, significa que ya hay una cita en ese horario
+      return data.length === 0;
+    } catch (error) {
+      console.error("Error inesperado:", error);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      setClientInfo({
-        name,
-        phone,
-        notes: notes.trim() || undefined
-      });
-      
-      navigate("/confirmation");
+      setIsSubmitting(true);
+
+      try {
+        // Verificar disponibilidad antes de continuar
+        const isAvailable = await checkAvailability();
+        
+        if (!isAvailable) {
+          toast({
+            title: "Horario no disponible",
+            description: "El horario seleccionado ya no está disponible. Por favor, elige otro horario.",
+            variant: "destructive",
+          });
+          navigate("/calendar"); // Redirigir al calendario para elegir otro horario
+          return;
+        }
+
+        setClientInfo({
+          name,
+          phone,
+          notes: notes.trim() || undefined
+        });
+        
+        navigate("/confirmation");
+      } catch (error) {
+        console.error("Error:", error);
+        toast({
+          title: "Error",
+          description: "Ocurrió un error inesperado. Por favor, intenta nuevamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     } else {
       toast({
         title: "Error",
@@ -109,6 +167,7 @@ const ClientFormPage = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={errors.name ? "border-destructive" : ""}
+                    disabled={isSubmitting}
                   />
                   {errors.name && (
                     <p className="text-destructive text-sm">Este campo es obligatorio</p>
@@ -124,6 +183,7 @@ const ClientFormPage = () => {
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Ingresa tu número de 10 dígitos"
                     className={errors.phone ? "border-destructive" : ""}
+                    disabled={isSubmitting}
                   />
                   {errors.phone && (
                     <p className="text-destructive text-sm">Ingresa un número de teléfono válido de 10 dígitos</p>
@@ -137,6 +197,7 @@ const ClientFormPage = () => {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Ej: Preferencias, alergias, etc."
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -146,11 +207,12 @@ const ClientFormPage = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/calendar")}
+                  disabled={isSubmitting}
                 >
                   Volver
                 </Button>
-                <Button type="submit">
-                  Confirmar Reserva
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Procesando..." : "Confirmar Reserva"}
                 </Button>
               </div>
             </form>

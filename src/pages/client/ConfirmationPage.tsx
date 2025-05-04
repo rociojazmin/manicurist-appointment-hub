@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
 import { format } from "date-fns";
@@ -7,17 +7,75 @@ import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import ClientLayout from "@/components/layouts/ClientLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const ConfirmationPage = () => {
   const { selectedService, selectedDate, selectedTime, clientInfo, resetBooking } = useBooking();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // Verificar si hay información completa
   useEffect(() => {
     if (!selectedService || !selectedDate || !selectedTime || !clientInfo) {
       navigate("/");
+      return;
     }
-  }, [selectedService, selectedDate, selectedTime, clientInfo, navigate]);
+
+    // Guardar la cita en la base de datos cuando se carga la página
+    const saveAppointment = async () => {
+      if (saved) return; // Evitar guardado múltiple
+      
+      setSaving(true);
+      
+      try {
+        // Formatear la fecha para la base de datos (YYYY-MM-DD)
+        const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        
+        // Guardar la cita en la tabla appointments
+        const { data, error } = await supabase
+          .from('appointments')
+          .insert([
+            {
+              client_name: clientInfo.name,
+              client_phone: clientInfo.phone,
+              manicurist_id: selectedService.manicurist_id,
+              service_id: selectedService.id,
+              appointment_date: formattedDate,
+              appointment_time: selectedTime,
+              notes: clientInfo.notes || null,
+              status: 'pending' // Estado inicial: pendiente
+            }
+          ])
+          .select();
+          
+        if (error) {
+          console.error("Error al guardar la cita:", error);
+          toast({
+            title: "Error",
+            description: "Hubo un problema al guardar tu reserva. Por favor, intenta nuevamente.",
+            variant: "destructive",
+          });
+        } else {
+          console.log("Cita guardada exitosamente:", data);
+          setSaved(true);
+        }
+      } catch (error) {
+        console.error("Error inesperado:", error);
+        toast({
+          title: "Error",
+          description: "Ocurrió un error inesperado. Por favor, intenta nuevamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+      }
+    };
+    
+    saveAppointment();
+  }, [selectedService, selectedDate, selectedTime, clientInfo, navigate, toast, saved]);
 
   if (!selectedService || !selectedDate || !selectedTime || !clientInfo) {
     return null;

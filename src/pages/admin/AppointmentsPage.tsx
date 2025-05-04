@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, isToday, isFuture, isPast, addDays, isAfter, isBefore } from "date-fns";
+import { format, isToday, isFuture, isPast, isAfter, isBefore } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,14 +16,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Appointment, Service, AppointmentStatus } from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 
+// Tipo para las citas con información del servicio
+interface AppointmentWithService extends Appointment {
+  service: Service;
+}
+
 const AppointmentsPage = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithService[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithService | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
-  const [services, setServices] = useState<Record<string, Service>>({});
   const { toast } = useToast();
   const { profile } = useAuthContext();
 
@@ -33,10 +38,13 @@ const AppointmentsPage = () => {
 
       setLoading(true);
       try {
-        // Cargar todas las citas para este manicurista
+        // Cargar todas las citas con información del servicio
         const { data, error } = await supabase
           .from('appointments')
-          .select('*')
+          .select(`
+            *,
+            service:service_id(*)
+          `)
           .eq('manicurist_id', profile.id)
           .order('appointment_date', { ascending: false });
           
@@ -48,29 +56,17 @@ const AppointmentsPage = () => {
             variant: "destructive"
           });
         } else {
-          // Cast the status field to AppointmentStatus
-          const formattedAppointments = (data || []).map(appointment => ({
-            ...appointment,
-            status: appointment.status as AppointmentStatus
-          }));
+          // Convertir los datos y asegurarse de que el tipo sea correcto
+          const formattedAppointments = (data || []).map(appointment => {
+            // Asegurarse de que el status sea del tipo correcto
+            return {
+              ...appointment,
+              status: appointment.status as AppointmentStatus,
+              service: appointment.service as Service
+            } as AppointmentWithService;
+          });
           
           setAppointments(formattedAppointments);
-        }
-        
-        // Cargar servicios para mostrar nombres
-        const { data: servicesData, error: servicesError } = await supabase
-          .from('services')
-          .select('*')
-          .eq('manicurist_id', profile.id);
-          
-        if (servicesError) {
-          console.error('Error fetching services:', servicesError);
-        } else {
-          const servicesMap: Record<string, Service> = {};
-          servicesData?.forEach(service => {
-            servicesMap[service.id] = service;
-          });
-          setServices(servicesMap);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -128,10 +124,9 @@ const AppointmentsPage = () => {
       }
       
       // Actualizar estado local
-      const updatedAppointments = appointments.map(apt =>
-        apt.id === id ? { ...apt, status: newStatus } : apt
+      setAppointments(prev => 
+        prev.map(apt => apt.id === id ? { ...apt, status: newStatus } : apt)
       );
-      setAppointments(updatedAppointments);
       
       // Si la cita seleccionada es la que se actualizó, actualizar también
       if (selectedAppointment?.id === id) {
@@ -152,7 +147,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const handleOpenDetails = (appointment: Appointment) => {
+  const handleOpenDetails = (appointment: AppointmentWithService) => {
     setSelectedAppointment(appointment);
     setNotes(appointment.notes || "");
     setIsDetailsOpen(true);
@@ -182,10 +177,9 @@ const AppointmentsPage = () => {
       }
       
       // Actualizar estado local
-      const updatedAppointments = appointments.map(apt =>
-        apt.id === selectedAppointment.id ? { ...apt, notes } : apt
+      setAppointments(prev => 
+        prev.map(apt => apt.id === selectedAppointment.id ? { ...apt, notes } : apt)
       );
-      setAppointments(updatedAppointments);
       setIsDetailsOpen(false);
 
       toast({
@@ -217,13 +211,13 @@ const AppointmentsPage = () => {
     }
   };
 
-  const renderAppointmentCard = (appointment: Appointment) => (
+  const renderAppointmentCard = (appointment: AppointmentWithService) => (
     <div key={appointment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
         <div>
           <h3 className="font-medium">{appointment.client_name}</h3>
           <p className="text-sm text-muted-foreground">
-            {services[appointment.service_id || '']?.name || 'Servicio no encontrado'}
+            {appointment.service?.name || 'Servicio no encontrado'}
           </p>
           <p className="text-sm text-muted-foreground">
             {format(new Date(appointment.appointment_date), "d MMM yyyy", { locale: es })} - {appointment.appointment_time}
@@ -469,7 +463,7 @@ const AppointmentsPage = () => {
                 <div>
                   <Label className="text-sm text-muted-foreground">Servicio</Label>
                   <p className="font-medium">
-                    {services[selectedAppointment.service_id || '']?.name || 'Servicio no encontrado'}
+                    {selectedAppointment.service?.name || 'Servicio no encontrado'}
                   </p>
                 </div>
                 <div>
