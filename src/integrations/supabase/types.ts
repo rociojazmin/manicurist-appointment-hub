@@ -57,6 +57,13 @@ export type Database = {
             referencedRelation: "manicurists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_service_id"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
         ]
       }
       exceptions: {
