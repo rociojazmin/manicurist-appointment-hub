@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [errors, setErrors] = useState<{email?: string, password?: string, name?: string}>({});
-  const { login, register, isLoading } = useAuthContext();
+  const { login, register, isAuthLoading } = useAuthContext();
   const { toast } = useToast();
 
   const validateForm = () => {
@@ -99,7 +99,7 @@ export default function LoginPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={errors.name ? "border-red-500" : ""}
-                  disabled={isLoading}
+                  disabled={isAuthLoading}
                 />
                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={errors.email ? "border-red-500" : ""}
-                disabled={isLoading}
+                disabled={isAuthLoading}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
@@ -126,7 +126,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={errors.password ? "border-red-500" : ""}
-                disabled={isLoading}
+                disabled={isAuthLoading}
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
@@ -136,9 +136,9 @@ export default function LoginPage() {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading}
+              disabled={isAuthLoading}
             >
-              {isLoading ? (
+              {isAuthLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {isLogin ? 'Iniciando sesión...' : 'Registrando...'}
@@ -155,7 +155,7 @@ export default function LoginPage() {
             variant="link"
             onClick={toggleMode}
             className="text-sm"
-            disabled={isLoading}
+            disabled={isAuthLoading}
           >
             {isLogin
               ? '¿No tienes una cuenta? Regístrate'

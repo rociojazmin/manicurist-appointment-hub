@@ -4,11 +4,11 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useAuthContext();
+  const { user, isSessionLoading } = useAuthContext();
   const location = useLocation();
 
   // Show loading state while checking authentication
-  if (isLoading) {
+  if (isSessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
