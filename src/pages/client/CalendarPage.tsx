@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -8,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment, WorkingHours, Service, Exception } from "@/types/database";
+import {
+  Appointment,
+  WorkingHours,
+  Service,
+  Exception,
+  AppointmentStatus,
+} from "@/types/database";
 import { useAuthContext } from "@/contexts/AuthContext";
 import {
   format,
@@ -101,7 +106,7 @@ const CalendarPage = () => {
         } else {
           console.log("Excepciones cargadas:", exceptionsData);
           setExceptions(exceptionsData || []);
-          
+
           const exceptionDates = (exceptionsData || []).map((ex) =>
             parseISO(ex.exception_date)
           );
@@ -127,29 +132,35 @@ const CalendarPage = () => {
     const [hours, minutes] = timeSlot.split(":").map(Number);
     const slotTime = new Date();
     slotTime.setHours(hours, minutes, 0, 0);
-    
+
     // Calcular el tiempo final del servicio
     const slotEndTime = new Date(slotTime);
     slotEndTime.setMinutes(slotTime.getMinutes() + serviceDuration);
-    
+
     for (const apt of appointments) {
-      const [aptHours, aptMinutes] = apt.appointment_time.split(":").map(Number);
+      const [aptHours, aptMinutes] = apt.appointment_time
+        .split(":")
+        .map(Number);
       const aptTime = new Date();
       aptTime.setHours(aptHours, aptMinutes, 0, 0);
-      
+
       // Obtener la duración del servicio de esta cita
       let aptServiceDuration = 0;
-      if (apt.service_id && selectedService && apt.service_id === selectedService.id) {
+      if (
+        apt.service_id &&
+        selectedService &&
+        apt.service_id === selectedService.id
+      ) {
         aptServiceDuration = selectedService.duration;
       } else {
         // Si no podemos determinar la duración específica, usamos un valor por defecto
         aptServiceDuration = 60; // 1 hora por defecto
       }
-      
+
       // Calcular el tiempo final de esta cita existente
       const aptEndTime = new Date(aptTime);
       aptEndTime.setMinutes(aptTime.getMinutes() + aptServiceDuration);
-      
+
       // Verificar superposición
       // (inicio1 < fin2) && (fin1 > inicio2)
       if (
@@ -159,7 +170,7 @@ const CalendarPage = () => {
         return true; // Hay superposición
       }
     }
-    
+
     return false; // No hay superposición
   };
 
@@ -174,16 +185,20 @@ const CalendarPage = () => {
       try {
         // Obtener el día de la semana (0 = domingo, 1 = lunes, ..., 6 = sábado)
         const dayOfWeek = selectedDate.getDay();
-        
+
         console.log("Día de la semana seleccionado:", dayOfWeek);
         console.log("Horarios de trabajo disponibles:", workingHours);
 
         // Verificar si el día seleccionado es una excepción
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        const isException = exceptions.some(ex => ex.exception_date === formattedDate);
-        
+        const isException = exceptions.some(
+          (ex) => ex.exception_date === formattedDate
+        );
+
         if (isException) {
-          console.log("El día seleccionado es una excepción, no hay horarios disponibles");
+          console.log(
+            "El día seleccionado es una excepción, no hay horarios disponibles"
+          );
           setAvailableTimes([]);
           return;
         }
@@ -223,7 +238,9 @@ const CalendarPage = () => {
             }
           }
         } else {
-          console.log("No hay configuración para este día, usando horarios predeterminados si corresponde");
+          console.log(
+            "No hay configuración para este día, usando horarios predeterminados si corresponde"
+          );
           // Si no hay configuración y no es domingo, usar horarios predeterminados
           if (dayOfWeek !== 0) {
             possibleTimes = [...DEFAULT_TIMES];
@@ -248,35 +265,47 @@ const CalendarPage = () => {
             console.log("Citas existentes para este día:", appointmentsData);
 
             // Convertir los datos de las citas al tipo Appointment correcto
-            const typedAppointments: Appointment[] = appointmentsData.map(apt => ({
-              ...apt,
-              status: apt.status as AppointmentStatus, // Aquí aseguramos que status sea del tipo AppointmentStatus
-            }));
+            const typedAppointments: Appointment[] = appointmentsData.map(
+              (apt) => ({
+                ...apt,
+                status: apt.status as AppointmentStatus, // Aquí aseguramos que status sea del tipo AppointmentStatus
+              })
+            );
 
             // Filtrar los horarios disponibles teniendo en cuenta la duración del servicio
-            possibleTimes = possibleTimes.filter(time => {
+            possibleTimes = possibleTimes.filter((time) => {
               // Verificar si este tiempo se superpone con alguna cita existente
-              return !isOverlapping(time, typedAppointments, selectedService.duration);
+              return !isOverlapping(
+                time,
+                typedAppointments,
+                selectedService.duration
+              );
             });
 
             // Además, necesitamos verificar que haya suficiente tiempo disponible para el servicio
-            possibleTimes = possibleTimes.filter(time => {
+            possibleTimes = possibleTimes.filter((time) => {
               // Convertir el slot de tiempo a una fecha y hora
               const [hours, minutes] = time.split(":").map(Number);
               const startTime = new Date();
               startTime.setHours(hours, minutes, 0, 0);
-              
+
               // Calcular el tiempo final del servicio
               const endTime = new Date(startTime);
-              endTime.setMinutes(startTime.getMinutes() + selectedService.duration);
-              
+              endTime.setMinutes(
+                startTime.getMinutes() + selectedService.duration
+              );
+
               // Verificar si hay suficiente tiempo disponible hasta el final del día o hasta la próxima cita
-              const endHour = dayConfig ? parseInt(dayConfig.end_time.split(":")[0]) : 18; // Usar 18:00 como hora de cierre por defecto
-              const endMinute = dayConfig ? parseInt(dayConfig.end_time.split(":")[1]) : 0;
-              
+              const endHour = dayConfig
+                ? parseInt(dayConfig.end_time.split(":")[0])
+                : 18; // Usar 18:00 como hora de cierre por defecto
+              const endMinute = dayConfig
+                ? parseInt(dayConfig.end_time.split(":")[1])
+                : 0;
+
               const dayEndTime = new Date();
               dayEndTime.setHours(endHour, endMinute, 0, 0);
-              
+
               return endTime <= dayEndTime;
             });
           }
@@ -329,20 +358,22 @@ const CalendarPage = () => {
         d.getMonth() === date.getMonth() &&
         d.getFullYear() === date.getFullYear()
     );
-    
+
     if (isException) {
       return true;
     }
 
     // Verificar si hay horarios de trabajo configurados para este día
     const dayOfWeek = date.getDay();
-    const dayHasWorkingHours = workingHours.some(wh => wh.day_of_week === dayOfWeek);
-    
+    const dayHasWorkingHours = workingHours.some(
+      (wh) => wh.day_of_week === dayOfWeek
+    );
+
     // Si no hay configuración para este día y es domingo, deshabilitar
     if (!dayHasWorkingHours && dayOfWeek === 0) {
       return true;
     }
-    
+
     // Si hay configuración explícita, verificar si está habilitado
     if (workingHours.length > 0 && !dayHasWorkingHours) {
       return true; // Día no configurado como laboral
