@@ -18,61 +18,62 @@ export const useAppointments = () => {
   const { toast } = useToast();
   const { profile } = useAuthContext();
 
-  // Cargar citas desde la base de datos
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      if (!profile) return;
+  // Fetch appointments from database
+  const fetchAppointments = async () => {
+    if (!profile) return;
 
-      setIsFetching(true);
-      try {
-        // Cargar todas las citas con información del servicio
-        const { data, error } = await supabase
-          .from("appointments")
-          .select(`
-            *,
-            service:service_id(*)
-          `)
-          .eq("manicurist_id", profile.id)
-          .order("appointment_date", { ascending: false });
+    setIsFetching(true);
+    try {
+      // Load all appointments with service information
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          *,
+          service:service_id(*)
+        `)
+        .eq("manicurist_id", profile.id)
+        .order("appointment_date", { ascending: false });
 
-        if (error) {
-          console.error("Error fetching appointments:", error);
-          toast({
-            title: "Error",
-            description: "No se pudieron cargar las citas",
-            variant: "destructive",
-          });
-        } else {
-          // Convertir los datos y asegurarse de que el tipo sea correcto
-          const formattedAppointments = (data || []).map((appointment) => {
-            // Asegurarse de que el status sea del tipo correcto
-            const appointmentWithService = {
-              ...appointment,
-              status: appointment.status as AppointmentStatus,
-              // Asegurar que service sea del tipo Service o manejarlo como nulo
-              service: appointment.service && typeof appointment.service === 'object' 
-                ? appointment.service as Service 
-                : {} as Service,
-            } as AppointmentWithService;
-            
-            return appointmentWithService;
-          });
+      if (error) {
+        console.error("Error fetching appointments:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las citas",
+          variant: "destructive",
+        });
+      } else {
+        // Convert data and ensure correct type
+        const formattedAppointments = (data || []).map((appointment) => {
+          // Ensure status is of correct type
+          const appointmentWithService = {
+            ...appointment,
+            status: appointment.status as AppointmentStatus,
+            // Ensure service is of Service type or handle as null
+            service: appointment.service && typeof appointment.service === 'object' 
+              ? appointment.service as Service 
+              : {} as Service,
+          } as AppointmentWithService;
+          
+          return appointmentWithService;
+        });
 
-          setAppointments(formattedAppointments);
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setIsFetching(false);
+        setAppointments(formattedAppointments);
       }
-    };
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
+  // Load appointments when profile changes
+  useEffect(() => {
     if (profile) {
       fetchAppointments();
     }
-  }, [profile, toast]);
+  }, [profile]);
 
-  // Filtrar citas por fecha y estado
+  // Filter appointments by date and status
   const todayAppointments = appointments.filter(
     (apt) =>
       format(new Date(apt.appointment_date), "yyyy-MM-dd") ===
@@ -105,7 +106,7 @@ export const useAppointments = () => {
 
     setIsUpdating(true);
     try {
-      // Update en la base de datos
+      // Update in database
       const { error } = await supabase
         .from("appointments")
         .update({ 
@@ -124,12 +125,12 @@ export const useAppointments = () => {
         return;
       }
 
-      // Actualizar estado local
+      // Update local state
       setAppointments((prev) =>
         prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
       );
 
-      // Si la cita seleccionada es la que se actualizó, actualizar también
+      // If the selected appointment is the one being updated, update it as well
       if (selectedAppointment?.id === id) {
         setSelectedAppointment({ ...selectedAppointment, status: newStatus });
       }
@@ -147,6 +148,9 @@ export const useAppointments = () => {
             : "actualizada"
         }`,
       });
+      
+      // Fetch updated appointments to ensure data consistency
+      await fetchAppointments();
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -165,7 +169,7 @@ export const useAppointments = () => {
 
     setIsUpdating(true);
     try {
-      // Actualizar notas en la base de datos
+      // Update notes in database
       const { error } = await supabase
         .from("appointments")
         .update({
@@ -184,7 +188,7 @@ export const useAppointments = () => {
         return;
       }
 
-      // Actualizar estado local
+      // Update local state
       setAppointments((prev) =>
         prev.map((apt) =>
           apt.id === selectedAppointment.id ? { ...apt, notes } : apt
@@ -196,6 +200,9 @@ export const useAppointments = () => {
         title: "Notas actualizadas",
         description: "Las notas de la cita han sido actualizadas correctamente",
       });
+      
+      // Fetch updated appointments to ensure data consistency
+      await fetchAppointments();
     } catch (error) {
       console.error("Error:", error);
     } finally {
