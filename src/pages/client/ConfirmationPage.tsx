@@ -61,6 +61,10 @@ const ConfirmationPage = () => {
         } else {
           console.log("Cita guardada exitosamente:", data);
           setSaved(true);
+          toast({
+            title: "Éxito",
+            description: "Tu reserva ha sido confirmada exitosamente.",
+          });
         }
       } catch (error) {
         console.error("Error inesperado:", error);

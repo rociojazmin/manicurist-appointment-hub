@@ -103,9 +103,13 @@ export const useAppointments = () => {
     if (!profile) return;
 
     try {
+      // Update en la base de datos
       const { error } = await supabase
         .from("appointments")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ 
+          status: newStatus, 
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", id);
 
       if (error) {

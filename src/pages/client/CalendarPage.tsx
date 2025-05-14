@@ -17,6 +17,8 @@ import {
   isBefore,
   startOfDay,
   parseISO,
+  parse,
+  addMinutes,
 } from "date-fns";
 
 // Horarios base predeterminados si no hay configuración específica
@@ -35,6 +37,8 @@ const DEFAULT_TIMES = [
   "16:30",
   "17:00",
 ];
+
+const TIME_SLOT_INTERVAL = 30; // minutos entre cada slot de tiempo
 
 const CalendarPage = () => {
   const {
@@ -113,6 +117,52 @@ const CalendarPage = () => {
     loadScheduleData();
   }, [selectedService]);
 
+  // Función para verificar si un horario se superpone con citas existentes
+  const isOverlapping = (
+    timeSlot: string,
+    appointments: Appointment[],
+    serviceDuration: number
+  ) => {
+    // Convertir el slot de tiempo a una fecha y hora para facilitar los cálculos
+    const [hours, minutes] = timeSlot.split(":").map(Number);
+    const slotTime = new Date();
+    slotTime.setHours(hours, minutes, 0, 0);
+    
+    // Calcular el tiempo final del servicio
+    const slotEndTime = new Date(slotTime);
+    slotEndTime.setMinutes(slotTime.getMinutes() + serviceDuration);
+    
+    for (const apt of appointments) {
+      const [aptHours, aptMinutes] = apt.appointment_time.split(":").map(Number);
+      const aptTime = new Date();
+      aptTime.setHours(aptHours, aptMinutes, 0, 0);
+      
+      // Obtener la duración del servicio de esta cita
+      let aptServiceDuration = 0;
+      if (apt.service_id && selectedService && apt.service_id === selectedService.id) {
+        aptServiceDuration = selectedService.duration;
+      } else {
+        // Si no podemos determinar la duración específica, usamos un valor por defecto
+        aptServiceDuration = 60; // 1 hora por defecto
+      }
+      
+      // Calcular el tiempo final de esta cita existente
+      const aptEndTime = new Date(aptTime);
+      aptEndTime.setMinutes(aptTime.getMinutes() + aptServiceDuration);
+      
+      // Verificar superposición
+      // (inicio1 < fin2) && (fin1 > inicio2)
+      if (
+        (slotTime < aptEndTime && slotEndTime > aptTime) ||
+        (aptTime < slotEndTime && aptEndTime > slotTime)
+      ) {
+        return true; // Hay superposición
+      }
+    }
+    
+    return false; // No hay superposición
+  };
+
   // Actualizar horarios disponibles cuando cambia la fecha
   useEffect(() => {
     const updateAvailableTimes = async () => {
@@ -187,7 +237,7 @@ const CalendarPage = () => {
         if (possibleTimes.length > 0) {
           const { data: appointments, error } = await supabase
             .from("appointments")
-            .select("*")
+            .select("*, service:service_id(*)")
             .eq("appointment_date", formattedDate)
             .eq("manicurist_id", selectedService.manicurist_id)
             .in("status", ["pending", "confirmed"]);
@@ -196,11 +246,33 @@ const CalendarPage = () => {
             console.error("Error fetching appointments:", error);
           } else if (appointments && appointments.length > 0) {
             console.log("Citas existentes para este día:", appointments);
-            // Eliminar horarios ya reservados
-            const bookedTimes = appointments.map((apt) => apt.appointment_time);
-            possibleTimes = possibleTimes.filter(
-              (time) => !bookedTimes.includes(time)
-            );
+
+            // Filtrar los horarios disponibles teniendo en cuenta la duración del servicio
+            possibleTimes = possibleTimes.filter(time => {
+              // Verificar si este tiempo se superpone con alguna cita existente
+              return !isOverlapping(time, appointments, selectedService.duration);
+            });
+
+            // Además, necesitamos verificar que haya suficiente tiempo disponible para el servicio
+            possibleTimes = possibleTimes.filter(time => {
+              // Convertir el slot de tiempo a una fecha y hora
+              const [hours, minutes] = time.split(":").map(Number);
+              const startTime = new Date();
+              startTime.setHours(hours, minutes, 0, 0);
+              
+              // Calcular el tiempo final del servicio
+              const endTime = new Date(startTime);
+              endTime.setMinutes(startTime.getMinutes() + selectedService.duration);
+              
+              // Verificar si hay suficiente tiempo disponible hasta el final del día o hasta la próxima cita
+              const endHour = dayConfig ? parseInt(dayConfig.end_time.split(":")[0]) : 18; // Usar 18:00 como hora de cierre por defecto
+              const endMinute = dayConfig ? parseInt(dayConfig.end_time.split(":")[1]) : 0;
+              
+              const dayEndTime = new Date();
+              dayEndTime.setHours(endHour, endMinute, 0, 0);
+              
+              return endTime <= dayEndTime;
+            });
           }
         }
 
