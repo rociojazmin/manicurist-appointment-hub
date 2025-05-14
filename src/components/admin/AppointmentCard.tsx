@@ -78,6 +78,8 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
         >
           Detalles
         </Button>
+        
+        {/* Only show action buttons based on current status */}
         {appointment.status === "pending" && (
           <>
             <Button
@@ -98,6 +100,7 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
             </Button>
           </>
         )}
+        
         {appointment.status === "confirmed" && (
           <Button
             variant="outline"

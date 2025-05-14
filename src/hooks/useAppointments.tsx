@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -58,6 +57,16 @@ export const useAppointments = () => {
         });
 
         setAppointments(formattedAppointments);
+        
+        // If there's a selected appointment, update it with fresh data
+        if (selectedAppointment) {
+          const updatedSelectedAppointment = formattedAppointments.find(
+            apt => apt.id === selectedAppointment.id
+          );
+          if (updatedSelectedAppointment) {
+            setSelectedAppointment(updatedSelectedAppointment);
+          }
+        }
       }
     } catch (error) {
       console.error("Error:", error);
