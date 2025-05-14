@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -13,17 +12,18 @@ import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
 
 const ClientFormPage = () => {
-  const { selectedService, selectedDate, selectedTime, setClientInfo } = useBooking();
+  const { selectedService, selectedDate, selectedTime, setClientInfo } =
+    useBooking();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({
     name: false,
-    phone: false
+    phone: false,
   });
 
   // Verificar si se han seleccionado servicio, fecha y hora
@@ -35,11 +35,11 @@ const ClientFormPage = () => {
   const validateForm = () => {
     const newErrors = {
       name: name.trim() === "",
-      phone: phone.trim() === "" || !/^\d{10}$/.test(phone)
+      phone: phone.trim() === "" || !/^\d{10}$/.test(phone),
     };
-    
+
     setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error);
+    return !Object.values(newErrors).some((error) => error);
   };
 
   const checkAvailability = async () => {
@@ -48,17 +48,24 @@ const ClientFormPage = () => {
     }
 
     try {
-      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+      const formattedDate = format(
+        new Date(
+          selectedDate.getFullYear(),
+          selectedDate.getMonth(),
+          selectedDate.getDate()
+        ),
+        "yyyy-MM-dd"
+      );
 
       // Verificar si ya existe una cita en ese horario
       const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('manicurist_id', selectedService.manicurist_id)
-        .eq('appointment_date', formattedDate)
-        .eq('appointment_time', selectedTime)
-        .neq('status', 'cancelled'); // No considerar citas canceladas
-      
+        .from("appointments")
+        .select("*")
+        .eq("manicurist_id", selectedService.manicurist_id)
+        .eq("appointment_date", formattedDate)
+        .eq("appointment_time", selectedTime)
+        .neq("status", "cancelled"); // No considerar citas canceladas
+
       if (error) {
         console.error("Error al verificar disponibilidad:", error);
         return false;
@@ -74,18 +81,19 @@ const ClientFormPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       setIsSubmitting(true);
 
       try {
         // Verificar disponibilidad antes de continuar
         const isAvailable = await checkAvailability();
-        
+
         if (!isAvailable) {
           toast({
             title: "Horario no disponible",
-            description: "El horario seleccionado ya no está disponible. Por favor, elige otro horario.",
+            description:
+              "El horario seleccionado ya no está disponible. Por favor, elige otro horario.",
             variant: "destructive",
           });
           navigate("/calendar"); // Redirigir al calendario para elegir otro horario
@@ -95,15 +103,16 @@ const ClientFormPage = () => {
         setClientInfo({
           name,
           phone,
-          notes: notes.trim() || undefined
+          notes: notes.trim() || undefined,
         });
-        
+
         navigate("/confirmation");
       } catch (error) {
         console.error("Error:", error);
         toast({
           title: "Error",
-          description: "Ocurrió un error inesperado. Por favor, intenta nuevamente.",
+          description:
+            "Ocurrió un error inesperado. Por favor, intenta nuevamente.",
           variant: "destructive",
         });
       } finally {
@@ -112,7 +121,8 @@ const ClientFormPage = () => {
     } else {
       toast({
         title: "Error",
-        description: "Por favor, completa correctamente todos los campos requeridos",
+        description:
+          "Por favor, completa correctamente todos los campos requeridos",
         variant: "destructive",
       });
     }
@@ -123,14 +133,18 @@ const ClientFormPage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-lg mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold mb-4">Completa tus datos</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-4">
+              Completa tus datos
+            </h1>
             <p className="text-muted-foreground">
               Ingresa tu información de contacto para confirmar la reserva
             </p>
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Detalles de la reserva</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Detalles de la reserva
+            </h2>
             <div className="space-y-2 mb-6">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Servicio:</span>
@@ -148,7 +162,9 @@ const ClientFormPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Duración:</span>
-                <span className="font-medium">{selectedService.duration} minutos</span>
+                <span className="font-medium">
+                  {selectedService.duration} minutos
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Precio:</span>
@@ -161,7 +177,9 @@ const ClientFormPage = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nombre completo <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="name">
+                    Nombre completo <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={name}
@@ -170,12 +188,16 @@ const ClientFormPage = () => {
                     disabled={isSubmitting}
                   />
                   {errors.name && (
-                    <p className="text-destructive text-sm">Este campo es obligatorio</p>
+                    <p className="text-destructive text-sm">
+                      Este campo es obligatorio
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="phone">
+                    Teléfono <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -186,7 +208,9 @@ const ClientFormPage = () => {
                     disabled={isSubmitting}
                   />
                   {errors.phone && (
-                    <p className="text-destructive text-sm">Ingresa un número de teléfono válido de 10 dígitos</p>
+                    <p className="text-destructive text-sm">
+                      Ingresa un número de teléfono válido de 10 dígitos
+                    </p>
                   )}
                 </div>
 
