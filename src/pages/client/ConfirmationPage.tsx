@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -11,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 const ConfirmationPage = () => {
-  const { selectedService, selectedDate, selectedTime, clientInfo, resetBooking } = useBooking();
+  const { selectedService, selectedDate, selectedTime, clientInfo, resetBooking, selectedManicurist } = useBooking();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -34,6 +33,9 @@ const ConfirmationPage = () => {
         // Formatear la fecha para la base de datos (YYYY-MM-DD)
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
         
+        // Usar el ID de la manicurista seleccionada o del servicio
+        const manicuristId = selectedManicurist?.id || selectedService.manicurist_id;
+        
         // Guardar la cita en la tabla appointments
         const { data, error } = await supabase
           .from('appointments')
@@ -41,7 +43,7 @@ const ConfirmationPage = () => {
             {
               client_name: clientInfo.name,
               client_phone: clientInfo.phone,
-              manicurist_id: selectedService.manicurist_id,
+              manicurist_id: manicuristId,
               service_id: selectedService.id,
               appointment_date: formattedDate,
               appointment_time: selectedTime,
@@ -79,7 +81,7 @@ const ConfirmationPage = () => {
     };
     
     saveAppointment();
-  }, [selectedService, selectedDate, selectedTime, clientInfo, navigate, toast, saved]);
+  }, [selectedService, selectedDate, selectedTime, clientInfo, selectedManicurist, navigate, toast, saved]);
 
   if (!selectedService || !selectedDate || !selectedTime || !clientInfo) {
     return null;

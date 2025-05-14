@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState } from "react";
-import { Service as DatabaseService } from "@/types/database";
+import { Service as DatabaseService, Manicurist } from "@/types/database";
 
 // Use the Service type from database.ts
 type Service = DatabaseService;
@@ -16,10 +16,12 @@ type BookingContextType = {
   selectedDate: Date | null;
   selectedTime: string | null;
   clientInfo: ClientInfo | null;
+  selectedManicurist: Manicurist | null;
   setSelectedService: (service: Service | null) => void;
   setSelectedDate: (date: Date | null) => void;
   setSelectedTime: (time: string | null) => void;
   setClientInfo: (info: ClientInfo | null) => void;
+  setSelectedManicurist: (manicurist: Manicurist | null) => void;
   resetBooking: () => void;
 };
 
@@ -41,12 +43,14 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [selectedManicurist, setSelectedManicurist] = useState<Manicurist | null>(null);
 
   const resetBooking = () => {
     setSelectedService(null);
     setSelectedDate(null);
     setSelectedTime(null);
     setClientInfo(null);
+    setSelectedManicurist(null);
   };
 
   const value = {
@@ -54,10 +58,12 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     selectedDate,
     selectedTime,
     clientInfo,
+    selectedManicurist,
     setSelectedService,
     setSelectedDate,
     setSelectedTime,
     setClientInfo,
+    setSelectedManicurist,
     resetBooking,
   };
 

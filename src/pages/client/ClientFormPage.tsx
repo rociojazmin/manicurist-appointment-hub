@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -12,7 +13,7 @@ import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
 
 const ClientFormPage = () => {
-  const { selectedService, selectedDate, selectedTime, setClientInfo } =
+  const { selectedService, selectedDate, selectedTime, setClientInfo, selectedManicurist } =
     useBooking();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -57,11 +58,14 @@ const ClientFormPage = () => {
         "yyyy-MM-dd"
       );
 
+      // Determinar qué ID de manicurista usar
+      const manicuristId = selectedManicurist?.id || selectedService.manicurist_id;
+
       // Verificar si ya existe una cita en ese horario
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("manicurist_id", selectedService.manicurist_id)
+        .eq("manicurist_id", manicuristId)
         .eq("appointment_date", formattedDate)
         .eq("appointment_time", selectedTime)
         .neq("status", "cancelled"); // No considerar citas canceladas

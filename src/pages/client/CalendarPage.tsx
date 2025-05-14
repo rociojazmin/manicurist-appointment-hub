@@ -50,6 +50,7 @@ const CalendarPage = () => {
     selectedService,
     selectedDate,
     selectedTime,
+    selectedManicurist,
     setSelectedDate,
     setSelectedTime,
   } = useBooking();
@@ -82,11 +83,14 @@ const CalendarPage = () => {
       setIsLoadingDates(true);
 
       try {
+        // Determinar qué ID de manicurista usar - del servicio seleccionado o del manicurista seleccionado
+        const manicuristId = selectedManicurist?.id || selectedService.manicurist_id;
+        
         // Cargar horarios de trabajo
         const { data: hoursData, error: hoursError } = await supabase
           .from("working_hours")
           .select("*")
-          .eq("manicurist_id", selectedService.manicurist_id);
+          .eq("manicurist_id", manicuristId);
 
         if (hoursError) {
           console.error("Error fetching working hours:", hoursError);
@@ -99,7 +103,7 @@ const CalendarPage = () => {
         const { data: exceptionsData, error: exceptionsError } = await supabase
           .from("exceptions")
           .select("*")
-          .eq("manicurist_id", selectedService.manicurist_id);
+          .eq("manicurist_id", manicuristId);
 
         if (exceptionsError) {
           console.error("Error fetching exceptions:", exceptionsError);
@@ -120,7 +124,7 @@ const CalendarPage = () => {
     };
 
     loadScheduleData();
-  }, [selectedService]);
+  }, [selectedService, selectedManicurist]);
 
   // Función para verificar si un horario se superpone con citas existentes
   const isOverlapping = (
@@ -250,13 +254,16 @@ const CalendarPage = () => {
           }
         }
 
+        // Determinar qué ID de manicurista usar
+        const manicuristId = selectedManicurist?.id || selectedService.manicurist_id;
+
         // Verificar citas existentes para ese día para eliminar horarios ya ocupados
         if (possibleTimes.length > 0) {
           const { data: appointmentsData, error } = await supabase
             .from("appointments")
             .select("*, service:service_id(*)")
             .eq("appointment_date", formattedDate)
-            .eq("manicurist_id", selectedService.manicurist_id)
+            .eq("manicurist_id", manicuristId)
             .in("status", ["pending", "confirmed"]);
 
           if (error) {
@@ -265,7 +272,7 @@ const CalendarPage = () => {
             console.log("Citas existentes para este día:", appointmentsData);
 
             // Convertir los datos de las citas al tipo Appointment correcto
-            const typedAppointments: Appointment[] = appointmentsData.map(
+            const typedAppointments = appointmentsData.map(
               (apt) => ({
                 ...apt,
                 status: apt.status as AppointmentStatus, // Aquí aseguramos que status sea del tipo AppointmentStatus
@@ -320,7 +327,7 @@ const CalendarPage = () => {
     };
 
     updateAvailableTimes();
-  }, [selectedDate, selectedService, workingHours, exceptions]);
+  }, [selectedDate, selectedService, selectedManicurist, workingHours, exceptions]);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
