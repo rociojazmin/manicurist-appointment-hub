@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
@@ -8,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Service } from "@/types/database";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 const ServiceSelectionPage = () => {
   const { selectedService, setSelectedService } = useBooking();
@@ -18,12 +21,12 @@ const ServiceSelectionPage = () => {
     selectedService?.id || null
   );
   const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Cargar servicios desde la base de datos
   useEffect(() => {
     const fetchServices = async () => {
-      setLoading(true);
+      setIsLoading(true);
       try {
         // Si tenemos un perfil de manicurista, obtener sus servicios
         // Si no, obtener todos los servicios
@@ -48,7 +51,7 @@ const ServiceSelectionPage = () => {
         console.error('Error:', error);
         setServices([]);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -86,9 +89,16 @@ const ServiceSelectionPage = () => {
             </p>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="border rounded-lg p-6 h-48">
+                  <Skeleton className="h-7 w-3/4 mb-4" />
+                  <Skeleton className="h-5 w-1/2 mb-2" />
+                  <Skeleton className="h-5 w-1/3 mb-4" />
+                  <Skeleton className="h-9 w-full mt-auto" />
+                </div>
+              ))}
             </div>
           ) : services.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
@@ -97,7 +107,7 @@ const ServiceSelectionPage = () => {
                   key={service.id}
                   id={service.id}
                   name={service.name}
-                  description=""  // Pass an empty string since we don't have description in our Service type
+                  description={service.description || ""}
                   price={service.price}
                   duration={service.duration}
                   selected={localSelectedService === service.id}

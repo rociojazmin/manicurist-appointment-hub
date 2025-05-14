@@ -1,10 +1,11 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -13,8 +14,8 @@ const ConfirmationPage = () => {
   const { selectedService, selectedDate, selectedTime, clientInfo, resetBooking, selectedManicurist } = useBooking();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Verificar si hay información completa
   useEffect(() => {
@@ -25,9 +26,9 @@ const ConfirmationPage = () => {
 
     // Guardar la cita en la base de datos cuando se carga la página
     const saveAppointment = async () => {
-      if (saved) return; // Evitar guardado múltiple
+      if (isSaved) return; // Evitar guardado múltiple
       
-      setSaving(true);
+      setIsSaving(true);
       
       try {
         // Formatear la fecha para la base de datos (YYYY-MM-DD)
@@ -62,7 +63,7 @@ const ConfirmationPage = () => {
           });
         } else {
           console.log("Cita guardada exitosamente:", data);
-          setSaved(true);
+          setIsSaved(true);
           toast({
             title: "Éxito",
             description: "Tu reserva ha sido confirmada exitosamente.",
@@ -76,12 +77,12 @@ const ConfirmationPage = () => {
           variant: "destructive",
         });
       } finally {
-        setSaving(false);
+        setIsSaving(false);
       }
     };
     
     saveAppointment();
-  }, [selectedService, selectedDate, selectedTime, clientInfo, selectedManicurist, navigate, toast, saved]);
+  }, [selectedService, selectedDate, selectedTime, clientInfo, selectedManicurist, navigate, toast, isSaved]);
 
   if (!selectedService || !selectedDate || !selectedTime || !clientInfo) {
     return null;
@@ -93,6 +94,22 @@ const ConfirmationPage = () => {
   };
 
   const formattedDate = format(selectedDate, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
+
+  if (isSaving) {
+    return (
+      <ClientLayout>
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-md mx-auto text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold">Guardando tu reserva...</h2>
+            <p className="text-muted-foreground mt-2">
+              Por favor espera mientras confirmamos tu turno
+            </p>
+          </div>
+        </div>
+      </ClientLayout>
+    );
+  }
 
   return (
     <ClientLayout>

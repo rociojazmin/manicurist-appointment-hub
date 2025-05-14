@@ -15,7 +15,8 @@ const generateUsername = (name: string): string => {
 };
 
 export function useAuth() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Manicurist | null>(null);
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export function useAuth() {
       } else {
         setProfile(null);
       }
-      setIsLoading(false);
+      setIsSessionLoading(false);
     });
 
     // Initial session check
@@ -96,14 +97,14 @@ export function useAuth() {
       if (session?.user) {
         await syncProfile(session.user);
       }
-      setIsLoading(false);
+      setIsSessionLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
+    setIsAuthLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -125,12 +126,12 @@ export function useAuth() {
       });
       console.error("Login error:", error);
     } finally {
-      setIsLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
   const register = async (email: string, password: string, name: string) => {
-    setIsLoading(true);
+    setIsAuthLoading(true);
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -158,11 +159,12 @@ export function useAuth() {
       });
       console.error("Register error:", error);
     } finally {
-      setIsLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
   const logout = async () => {
+    setIsAuthLoading(true);
     try {
       await supabase.auth.signOut();
       toast({ title: "Sesión cerrada" });
@@ -176,13 +178,16 @@ export function useAuth() {
         variant: "destructive",
       });
       console.error("Logout error:", error);
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
   return {
     user,
     profile,
-    isLoading,
+    isSessionLoading,
+    isAuthLoading,
     login,
     register,
     logout,

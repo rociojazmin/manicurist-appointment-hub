@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import ClientLayout from "@/components/layouts/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const ClientFormPage = () => {
   const { selectedService, selectedDate, selectedTime, setClientInfo, selectedManicurist } =
@@ -240,7 +241,14 @@ const ClientFormPage = () => {
                   Volver
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Procesando..." : "Confirmar Reserva"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    "Confirmar Reserva"
+                  )}
                 </Button>
               </div>
             </form>

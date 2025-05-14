@@ -10,20 +10,23 @@ import { useToast } from "@/components/ui/use-toast";
 import ServiceCard from "@/components/client/ServiceCard";
 import { Loader2 } from "lucide-react";
 import { useBooking } from "@/contexts/BookingContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ManicuristProfilePage = () => {
   const { username } = useParams<{ username: string }>();
   const [manicurist, setManicurist] = useState<Manicurist | null>(null);
   const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setSelectedService } = useBooking();
+  const { setSelectedService, setSelectedManicurist } = useBooking();
 
   useEffect(() => {
     const fetchManicuristProfile = async () => {
-      setLoading(true);
+      if (!username) return;
+      
+      setIsLoading(true);
       try {
         // Buscar el perfil de la manicurista por username
         const { data: manicuristData, error: manicuristError } = await supabase
@@ -44,6 +47,7 @@ const ManicuristProfilePage = () => {
         }
 
         setManicurist(manicuristData);
+        setSelectedManicurist(manicuristData);
 
         // Buscar los servicios de la manicurista
         const { data: servicesData, error: servicesError } = await supabase
@@ -70,14 +74,12 @@ const ManicuristProfilePage = () => {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    if (username) {
-      fetchManicuristProfile();
-    }
-  }, [username, navigate, toast]);
+    fetchManicuristProfile();
+  }, [username, navigate, toast, setSelectedManicurist]);
 
   const handleServiceSelect = (serviceId: string) => {
     setSelectedServiceId(serviceId);
@@ -93,11 +95,28 @@ const ManicuristProfilePage = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <ClientLayout>
-        <div className="container mx-auto px-4 py-12 flex justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white shadow-md rounded-xl p-6 mb-8">
+              <Skeleton className="h-8 w-1/3 mb-4" />
+              <Skeleton className="h-5 w-1/4 mb-8" />
+              <Separator className="my-6" />
+              <Skeleton className="h-6 w-40 mb-6" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="border rounded-lg p-4 h-40">
+                    <Skeleton className="h-6 w-2/3 mb-3" />
+                    <Skeleton className="h-4 w-1/2 mb-2" />
+                    <Skeleton className="h-4 w-1/3 mb-6" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </ClientLayout>
     );

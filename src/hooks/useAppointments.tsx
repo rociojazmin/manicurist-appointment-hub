@@ -13,7 +13,8 @@ export const useAppointments = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithService | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuthContext();
 
@@ -22,7 +23,7 @@ export const useAppointments = () => {
     const fetchAppointments = async () => {
       if (!profile) return;
 
-      setLoading(true);
+      setIsFetching(true);
       try {
         // Cargar todas las citas con información del servicio
         const { data, error } = await supabase
@@ -62,7 +63,7 @@ export const useAppointments = () => {
       } catch (error) {
         console.error("Error:", error);
       } finally {
-        setLoading(false);
+        setIsFetching(false);
       }
     };
 
@@ -102,6 +103,7 @@ export const useAppointments = () => {
   const handleStatus = async (id: string, newStatus: AppointmentStatus) => {
     if (!profile) return;
 
+    setIsUpdating(true);
     try {
       // Update en la base de datos
       const { error } = await supabase
@@ -147,6 +149,8 @@ export const useAppointments = () => {
       });
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -159,6 +163,7 @@ export const useAppointments = () => {
   const handleUpdateNotes = async () => {
     if (!selectedAppointment) return;
 
+    setIsUpdating(true);
     try {
       // Actualizar notas en la base de datos
       const { error } = await supabase
@@ -193,6 +198,8 @@ export const useAppointments = () => {
       });
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -210,7 +217,8 @@ export const useAppointments = () => {
     setIsDetailsOpen,
     notes,
     setNotes,
-    loading,
+    isFetching,
+    isUpdating,
     handleStatus,
     handleOpenDetails,
     handleUpdateNotes,
