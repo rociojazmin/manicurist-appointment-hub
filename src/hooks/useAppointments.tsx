@@ -50,7 +50,7 @@ export const useAppointments = () => {
               status: appointment.status as AppointmentStatus,
               // Asegurar que service sea del tipo Service o manejarlo como nulo
               service: appointment.service && typeof appointment.service === 'object' 
-                ? appointment.service as unknown as Service 
+                ? appointment.service as Service 
                 : {} as Service,
             } as AppointmentWithService;
             

@@ -235,7 +235,7 @@ const CalendarPage = () => {
 
         // Verificar citas existentes para ese día para eliminar horarios ya ocupados
         if (possibleTimes.length > 0) {
-          const { data: appointments, error } = await supabase
+          const { data: appointmentsData, error } = await supabase
             .from("appointments")
             .select("*, service:service_id(*)")
             .eq("appointment_date", formattedDate)
@@ -244,13 +244,19 @@ const CalendarPage = () => {
 
           if (error) {
             console.error("Error fetching appointments:", error);
-          } else if (appointments && appointments.length > 0) {
-            console.log("Citas existentes para este día:", appointments);
+          } else if (appointmentsData && appointmentsData.length > 0) {
+            console.log("Citas existentes para este día:", appointmentsData);
+
+            // Convertir los datos de las citas al tipo Appointment correcto
+            const typedAppointments: Appointment[] = appointmentsData.map(apt => ({
+              ...apt,
+              status: apt.status as AppointmentStatus, // Aquí aseguramos que status sea del tipo AppointmentStatus
+            }));
 
             // Filtrar los horarios disponibles teniendo en cuenta la duración del servicio
             possibleTimes = possibleTimes.filter(time => {
               // Verificar si este tiempo se superpone con alguna cita existente
-              return !isOverlapping(time, appointments, selectedService.duration);
+              return !isOverlapping(time, typedAppointments, selectedService.duration);
             });
 
             // Además, necesitamos verificar que haya suficiente tiempo disponible para el servicio
