@@ -1,121 +1,24 @@
 
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Manicurist, Service } from "@/types/database";
+import { useParams } from "react-router-dom";
 import ClientLayout from "@/components/layouts/ClientLayout";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/components/ui/use-toast";
-import ServiceCard from "@/components/client/ServiceCard";
-import { Loader2 } from "lucide-react";
-import { useBooking } from "@/contexts/BookingContext";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useManicuristProfile } from "@/hooks/useManicuristProfile";
+import { useServiceSelection } from "@/hooks/useServiceSelection";
+import ProfileSkeleton from "@/components/client/ProfileSkeleton";
+import ProfileNotFound from "@/components/client/ProfileNotFound";
+import ServicesList from "@/components/client/ServicesList";
 
 const ManicuristProfilePage = () => {
   const { username } = useParams<{ username: string }>();
-  const [manicurist, setManicurist] = useState<Manicurist | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { setSelectedService, setSelectedManicurist } = useBooking();
-
-  useEffect(() => {
-    const fetchManicuristProfile = async () => {
-      if (!username) return;
-      
-      setIsLoading(true);
-      try {
-        // Buscar el perfil de la manicurista por username
-        const { data: manicuristData, error: manicuristError } = await supabase
-          .from("manicurists")
-          .select("*")
-          .eq("username", username)
-          .single();
-
-        if (manicuristError) {
-          console.error("Error fetching manicurist:", manicuristError);
-          toast({
-            title: "Manicurista no encontrada",
-            description: "No se encontró un perfil con ese nombre de usuario",
-            variant: "destructive",
-          });
-          navigate("/");
-          return;
-        }
-
-        setManicurist(manicuristData);
-        setSelectedManicurist(manicuristData);
-
-        // Buscar los servicios de la manicurista
-        const { data: servicesData, error: servicesError } = await supabase
-          .from("services")
-          .select("*")
-          .eq("manicurist_id", manicuristData.id);
-
-        if (servicesError) {
-          console.error("Error fetching services:", servicesError);
-          toast({
-            title: "Error",
-            description: "No se pudieron cargar los servicios",
-            variant: "destructive",
-          });
-          setServices([]);
-        } else {
-          setServices(servicesData || []);
-        }
-      } catch (error) {
-        console.error("Unexpected error:", error);
-        toast({
-          title: "Error",
-          description: "Ocurrió un error inesperado",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchManicuristProfile();
-  }, [username, navigate, toast, setSelectedManicurist]);
-
-  const handleServiceSelect = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-  };
-
-  const handleContinue = () => {
-    if (selectedServiceId) {
-      const service = services.find((s) => s.id === selectedServiceId);
-      if (service) {
-        setSelectedService(service);
-        navigate("/calendar");
-      }
-    }
-  };
+  const { manicurist, services, isLoading } = useManicuristProfile(username);
+  const { selectedServiceId, handleServiceSelect, handleContinue } = useServiceSelection(services);
 
   if (isLoading) {
     return (
       <ClientLayout>
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white shadow-md rounded-xl p-6 mb-8">
-              <Skeleton className="h-8 w-1/3 mb-4" />
-              <Skeleton className="h-5 w-1/4 mb-8" />
-              <Separator className="my-6" />
-              <Skeleton className="h-6 w-40 mb-6" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="border rounded-lg p-4 h-40">
-                    <Skeleton className="h-6 w-2/3 mb-3" />
-                    <Skeleton className="h-4 w-1/2 mb-2" />
-                    <Skeleton className="h-4 w-1/3 mb-6" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ProfileSkeleton />
           </div>
         </div>
       </ClientLayout>
@@ -126,13 +29,7 @@ const ManicuristProfilePage = () => {
     return (
       <ClientLayout>
         <div className="container mx-auto px-4 py-12">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold">Perfil no encontrado</h1>
-            <p className="mt-4">No se encontró un perfil con ese nombre de usuario.</p>
-            <Button className="mt-6" onClick={() => navigate("/")}>
-              Volver al inicio
-            </Button>
-          </div>
+          <ProfileNotFound />
         </div>
       </ClientLayout>
     );
@@ -156,35 +53,12 @@ const ManicuristProfilePage = () => {
               <h2 className="text-xl font-semibold mb-4">Servicios disponibles</h2>
             </div>
 
-            {services.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
-                {services.map((service) => (
-                  <ServiceCard
-                    key={service.id}
-                    id={service.id}
-                    name={service.name}
-                    description={service.description || ""}
-                    price={service.price}
-                    duration={service.duration}
-                    selected={selectedServiceId === service.id}
-                    onClick={() => handleServiceSelect(service.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-6">
-                Esta manicurista no tiene servicios disponibles actualmente.
-              </p>
-            )}
-
-            <div className="mt-8">
-              <Button
-                onClick={handleContinue}
-                disabled={!selectedServiceId || services.length === 0}
-              >
-                Reservar turno
-              </Button>
-            </div>
+            <ServicesList 
+              services={services}
+              selectedServiceId={selectedServiceId}
+              onSelectService={handleServiceSelect}
+              onContinue={handleContinue}
+            />
           </div>
         </div>
       </div>
