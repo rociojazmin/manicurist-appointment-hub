@@ -79,7 +79,7 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
           Detalles
         </Button>
         
-        {/* Only show action buttons based on current status */}
+        {/* Only show action buttons for pending status */}
         {appointment.status === "pending" && (
           <>
             <Button
@@ -101,16 +101,7 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
           </>
         )}
         
-        {appointment.status === "confirmed" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-blue-600 border-blue-600 hover:bg-blue-50"
-            onClick={() => onStatusChange(appointment.id, "completed")}
-          >
-            Completar
-          </Button>
-        )}
+        {/* Remove the completed button for confirmed appointments */}
       </div>
     </div>
   );

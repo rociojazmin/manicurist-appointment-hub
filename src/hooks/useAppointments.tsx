@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -31,6 +32,7 @@ export const useAppointments = () => {
           service:service_id(*)
         `)
         .eq("manicurist_id", profile.id)
+        .neq("status", "cancelled") // Filter out cancelled appointments
         .order("appointment_date", { ascending: false });
 
       if (error) {
@@ -65,6 +67,10 @@ export const useAppointments = () => {
           );
           if (updatedSelectedAppointment) {
             setSelectedAppointment(updatedSelectedAppointment);
+          } else {
+            // If the appointment is no longer in the list (was cancelled), close the details modal
+            setIsDetailsOpen(false);
+            setSelectedAppointment(null);
           }
         }
       }
@@ -134,29 +140,36 @@ export const useAppointments = () => {
         return;
       }
 
-      // Update local state
-      setAppointments((prev) =>
-        prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
-      );
-
-      // If the selected appointment is the one being updated, update it as well
-      if (selectedAppointment?.id === id) {
-        setSelectedAppointment({ ...selectedAppointment, status: newStatus });
-      }
-
       const appointment = appointments.find((apt) => apt.id === id);
-      toast({
-        title: "Estado actualizado",
-        description: `La cita de ${appointment?.client_name} ha sido ${
-          newStatus === "confirmed"
-            ? "confirmada"
-            : newStatus === "cancelled"
-            ? "cancelada"
-            : newStatus === "completed"
-            ? "completada"
-            : "actualizada"
-        }`,
-      });
+
+      // If we're cancelling, we'll remove from the list through fetchAppointments
+      if (newStatus === "cancelled") {
+        toast({
+          title: "Cita Cancelada",
+          description: `La cita de ${appointment?.client_name} ha sido cancelada`,
+        });
+      } else {
+        // For other status changes, update local state
+        setAppointments((prev) =>
+          prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
+        );
+
+        // If the selected appointment is the one being updated, update it as well
+        if (selectedAppointment?.id === id) {
+          setSelectedAppointment({ ...selectedAppointment, status: newStatus });
+        }
+
+        toast({
+          title: "Estado actualizado",
+          description: `La cita de ${appointment?.client_name} ha sido ${
+            newStatus === "confirmed"
+              ? "confirmada"
+              : newStatus === "completed"
+              ? "completada"
+              : "actualizada"
+          }`,
+        });
+      }
       
       // Fetch updated appointments to ensure data consistency
       await fetchAppointments();
