@@ -70,7 +70,9 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
           {getStatusText(appointment.status)}
         </Badge>
       </div>
+      
       <div className="mt-4 flex space-x-2">
+        {/* Details button always shows */}
         <Button
           variant="outline"
           size="sm"
@@ -100,8 +102,6 @@ const AppointmentCard = ({ appointment, onViewDetails, onStatusChange }: Appoint
             </Button>
           </>
         )}
-        
-        {/* Remove the completed button for confirmed appointments */}
       </div>
     </div>
   );
